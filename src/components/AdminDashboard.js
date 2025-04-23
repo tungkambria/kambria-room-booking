@@ -180,7 +180,7 @@ const AdminDashboard = () => {
                   className="mb-3"
                 />
                 <Button onClick={createRoom} className="action-button">
-                  Add Room
+                  Add
                 </Button>
               </div>
 
