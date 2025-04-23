@@ -1,38 +1,81 @@
-.App {
-  text-align: center;
+:root {
+  --primary-color: #3498db !important;
+  --secondary-color: #2c3e50 !important;
+  --accent-color: #e74c3c !important;
+  --light-color: #ecf0f1 !important;
+  --dark-color: #2c3e50 !important;
+  --success-color: #2ecc71 !important;
+  --warning-color: #f39c12 !important;
+  --danger-color: #e74c3c !important;
+  --border-radius: 8px !important;
+  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+body {
+  margin: 0 !important;
+  font-family: "Questrial", sans-serif !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  background-color: #f5f7fa !important;
+  color: #333 !important;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
+.main-content {
+  min-height: calc(100vh - 60px) !important;
+  padding-top: 20px !important;
+}
+
+.booking-container {
+  display: grid !important;
+  grid-template-columns: 300px 1fr !important;
+  gap: 24px !important;
+}
+
+.room-selection-section {
+  background: white !important;
+  border-radius: var(--border-radius) !important;
+  padding: 20px !important;
+  box-shadow: var(--box-shadow) !important;
+}
+
+.booking-details-section {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+}
+
+.booking-form-container,
+.calendar-container,
+.booking-list-container {
+  background: white !important;
+  border-radius: var(--border-radius) !important;
+  padding: 20px !important;
+  box-shadow: var(--box-shadow) !important;
+}
+
+@media (max-width: 992px) {
+  .booking-container {
+    grid-template-columns: 1fr !important;
   }
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.btn-primary {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
 }
 
-.App-link {
-  color: #61dafb;
+.btn-primary:hover {
+  background-color: #2980b9 !important;
+  border-color: #2980b9 !important;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.form-control {
+  border-radius: var(--border-radius) !important;
+  padding: 10px 15px !important;
+  border: 1px solid #ddd !important;
+}
+
+.form-control:focus {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25) !important;
 }

@@ -1,0 +1,45 @@
+.room-list-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 15px !important;
+}
+
+.section-title {
+  color: var(--secondary-color) !important;
+  font-weight: 600 !important;
+  margin-bottom: 10px !important;
+}
+
+.room-item {
+  border: none !important;
+  border-radius: var(--border-radius) !important;
+  margin-bottom: 8px !important;
+  padding: 12px 15px !important;
+  transition: all 0.2s !important;
+}
+
+.room-item:hover {
+  transform: translateX(2px) !important;
+  box-shadow: var(--box-shadow) !important;
+}
+
+.room-item-content {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.room-name {
+  font-weight: 500 !important;
+}
+
+.availability-badge {
+  font-weight: normal !important;
+  padding: 5px 10px !important;
+}
+
+.loading-spinner {
+  display: flex !important;
+  justify-content: center !important;
+  padding: 20px !important;
+}

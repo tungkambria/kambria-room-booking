@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { ListGroup, Spinner } from "react-bootstrap";
+import { ListGroup, Spinner, Badge } from "react-bootstrap";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faDoorOpen } from "@fortawesome/free-solid-svg-icons";
+import "./RoomList.css";
 
 const RoomList = ({ onSelect }) => {
   const [rooms, setRooms] = useState([]);
@@ -24,18 +27,35 @@ const RoomList = ({ onSelect }) => {
   }, []);
 
   if (loading) {
-    return <Spinner animation="border" variant="primary" />;
+    return (
+      <div className="loading-spinner">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
   }
 
   return (
-    <ListGroup>
-      {rooms.map((room) => (
-        <ListGroup.Item key={room} action onClick={() => onSelect(room)}>
-          {room}
-        </ListGroup.Item>
-      ))}
-    </ListGroup>
+    <div className="room-list-container">
+      <h4 className="section-title">Available Rooms</h4>
+      <ListGroup>
+        {rooms.map((room) => (
+          <ListGroup.Item
+            key={room}
+            action
+            onClick={() => onSelect(room)}
+            className="room-item"
+          >
+            <div className="room-item-content">
+              <FontAwesomeIcon icon={faDoorOpen} className="me-2" />
+              <span className="room-name">{room}</span>
+              <Badge bg="primary" className="availability-badge">
+                Available
+              </Badge>
+            </div>
+          </ListGroup.Item>
+        ))}
+      </ListGroup>
+    </div>
   );
 };
-
 export default RoomList;

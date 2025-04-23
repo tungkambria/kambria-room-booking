@@ -1,0 +1,39 @@
+.calendar-view-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 15px !important;
+}
+
+.calendar-title {
+  color: var(--secondary-color) !important;
+  font-weight: 600 !important;
+}
+
+.calendar-wrapper {
+  height: 600px !important;
+  background: white !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: var(--box-shadow) !important;
+  padding: 15px !important;
+}
+
+.custom-calendar {
+  height: 100% !important;
+}
+
+.calendar-toolbar {
+  margin-bottom: 15px !important;
+}
+
+.rbc-event {
+  padding: 2px 5px !important;
+}
+
+.rbc-today {
+  background-color: #f8f9fa !important;
+}
+
+.rbc-header {
+  padding: 10px 0 !important;
+  font-weight: 500 !important;
+}

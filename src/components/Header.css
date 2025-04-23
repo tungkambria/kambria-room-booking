@@ -1,0 +1,28 @@
+.app-header {
+  padding: 15px 0 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
+
+.logo-icon {
+  width: 24px !important;
+  height: 24px !important;
+  color: white !important;
+}
+
+.brand-text {
+  font-weight: 600 !important;
+  font-size: 1.2rem !important;
+}
+
+.admin-link {
+  color: white !important;
+  text-decoration: none !important;
+  padding: 8px 15px !important;
+  border-radius: 4px !important;
+  transition: background-color 0.2s !important;
+}
+
+.admin-link:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+}

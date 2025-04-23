@@ -1,0 +1,43 @@
+.booking-list-card {
+  border: none !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: var(--box-shadow) !important;
+}
+
+.booking-list-title {
+  color: var(--secondary-color) !important;
+  font-weight: 600 !important;
+  margin-bottom: 20px !important;
+}
+
+.booking-table {
+  margin-bottom: 0 !important;
+}
+
+.booking-table thead th {
+  border-top: none !important;
+  font-weight: 500 !important;
+  color: #6c757d !important;
+  border-bottom: 2px solid #dee2e6 !important;
+}
+
+.booking-table tbody tr:hover {
+  background-color: #f8f9fa !important;
+}
+
+.status-badge {
+  padding: 5px 10px !important;
+  border-radius: 20px !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+}
+
+.status-badge.approved {
+  background-color: #d4edda !important;
+  color: #155724 !important;
+}
+
+.status-badge.pending {
+  background-color: #fff3cd !important;
+  color: #856404 !important;
+}
