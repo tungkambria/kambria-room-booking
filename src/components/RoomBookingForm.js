@@ -25,14 +25,25 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       purpose,
     };
 
-    await addDoc(collection(db, "bookings"), newBooking);
+    try {
+      // Add the new booking to Firestore
+      const docRef = await addDoc(collection(db, "bookings"), newBooking);
 
-    // Clear the form
-    setName("");
-    setDate("");
-    setStartTime("");
-    setEndTime("");
-    setPurpose("");
+      // Update local state with the new booking (including the auto-generated ID if needed)
+      setBookings((prevBookings) => [
+        ...prevBookings,
+        { ...newBooking, id: docRef.id },
+      ]);
+
+      // Clear the form
+      setName("");
+      setDate("");
+      setStartTime("");
+      setEndTime("");
+      setPurpose("");
+    } catch (error) {
+      console.error("Error adding booking: ", error);
+    }
   };
 
   return (
