@@ -9,6 +9,7 @@ import {
   getDocs,
   doc,
 } from "firebase/firestore";
+import emailjs from "@emailjs/browser";
 import "./RoomBookingForm.css";
 import {
   formatDateGMT7,
@@ -16,6 +17,41 @@ import {
   generateOccurrences,
   weekDays,
 } from "../utils";
+
+// Initialize EmailJS with the public key
+const initializeEmailJS = () => {
+  const publicKey = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
+  console.log("Public Key:", publicKey); // Add this line
+  if (!publicKey) {
+    console.error("EmailJS public key is not defined in environment variables");
+    return false;
+  }
+  try {
+    emailjs.init(publicKey);
+    console.log("EmailJS initialized successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to initialize EmailJS:", error);
+    return false;
+  }
+};
+
+// Utility function to send emails using EmailJS
+const sendEmail = async (templateId, params) => {
+  const serviceId = process.env.REACT_APP_EMAILJS_SERVICE_ID;
+  if (!serviceId || !templateId) {
+    console.error("EmailJS service ID or template ID is missing");
+    return false;
+  }
+  try {
+    const response = await emailjs.send(serviceId, templateId, params);
+    console.log(`Email sent successfully to ${params.to_email}`, response);
+    return true;
+  } catch (error) {
+    console.error(`Error sending email to ${params.to_email}:`, error);
+    return false;
+  }
+};
 
 // Confirmation Modal Component
 const ICSConfirmationModal = ({ show, onConfirm, onCancel, booking }) => {
@@ -43,6 +79,7 @@ const ICSConfirmationModal = ({ show, onConfirm, onCancel, booking }) => {
 
 const RoomBookingForm = ({ selectedRoom, setBookings }) => {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -57,6 +94,14 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
   // State for confirmation modal
   const [showICSModal, setShowICSModal] = useState(false);
   const [pendingBooking, setPendingBooking] = useState(null);
+
+  // Initialize EmailJS on component mount
+  useState(() => {
+    const isInitialized = initializeEmailJS();
+    if (!isInitialized) {
+      setError("Email service initialization failed. Please contact support.");
+    }
+  }, []);
 
   const handleRecurrenceDayChange = (dayId) => {
     setRecurrenceDays((prev) =>
@@ -203,15 +248,72 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
+  const sendBookingEmails = async (booking) => {
+    const emailParams = {
+      room_name: booking.room.name,
+      booking_date: booking.date,
+      start_time: booking.startTime,
+      end_time: booking.endTime,
+      purpose: booking.purpose,
+      booker_name: booking.name,
+      booker_email: booking.email,
+    };
+
+    // Send email to booker
+    const bookerTemplateId = process.env.REACT_APP_EMAILJS_BOOKER_TEMPLATE_ID;
+    const bookerSent = await sendEmail(bookerTemplateId, {
+      ...emailParams,
+      to_email: booking.email,
+    });
+
+    // Send emails to admins
+    const adminTemplateId = process.env.REACT_APP_EMAILJS_ADMIN_TEMPLATE_ID;
+    const adminEmails = [
+      "liencao@kambria.io",
+      "tungpham@kambria.io",
+      "dung_le@ohmnilabs.com",
+    ];
+
+    const adminResults = await Promise.all(
+      adminEmails.map((adminEmail) =>
+        sendEmail(adminTemplateId, {
+          ...emailParams,
+          to_email: adminEmail.trim(),
+        })
+      )
+    );
+
+    // Log results and provide user feedback
+    if (!bookerSent) {
+      console.warn("Failed to send email to booker");
+      setError(
+        "Booking successful, but failed to send confirmation email to you."
+      );
+    }
+    adminResults.forEach((success, index) => {
+      if (!success) {
+        console.warn(`Failed to send email to admin ${adminEmails[index]}`);
+      }
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
 
     const isAvailable = await checkTimeSlotAvailability();
     if (!isAvailable) return;
 
     const newBooking = {
       name,
+      email,
       date,
       startTime,
       endTime,
@@ -236,12 +338,16 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
         { ...newBooking, id: docRef.id, room: selectedRoom },
       ]);
 
-      // Store the booking and show confirmation modal
+      // Send notification emails
+      await sendBookingEmails(newBooking);
+
+      // Store the booking and show confirmation modal for ICS
       setPendingBooking(newBooking);
       setShowICSModal(true);
 
       // Clear the form
       setName("");
+      setEmail("");
       setDate("");
       setStartTime("");
       setEndTime("");
@@ -335,14 +441,24 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
                 </Form.Group>
               </Col>
             </Row>
-
             <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Your Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="Enter your email"
+                  />
+                </Form.Group>
+              </Col>
               <Col>
                 <Form.Group className="mb-3">
                   <Form.Label>Purpose</Form.Label>
                   <Form.Control
-                    as="textarea"
-                    rows={3}
+                    type="text"
                     value={purpose}
                     onChange={(e) => setPurpose(e.target.value)}
                     placeholder="Enter the purpose of your booking"

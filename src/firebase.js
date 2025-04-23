@@ -3,12 +3,12 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDQ1iLJK-TmDMjkn_Ld23DPZXob2QCd_V4",
-  authDomain: "kambria-room-booking.firebaseapp.com",
-  projectId: "kambria-room-booking",
-  storageBucket: "kambria-room-booking.appspot.com",
-  messagingSenderId: "70927900735",
-  appId: "1:70927900735:web:d64a8dfbb5f9146e23188a",
+  apiKey: "AIzaSyCIOzQgF-kblbdtjkuix662kAyB9bd7vo4",
+  authDomain: "kolvn-meeting-room-booking.firebaseapp.com",
+  projectId: "kolvn-meeting-room-booking",
+  storageBucket: "kolvn-meeting-room-booking.firebasestorage.app",
+  messagingSenderId: "783293886309",
+  appId: "1:783293886309:web:3ca56846d136bce31b3b8c",
 };
 
 const app = initializeApp(firebaseConfig);

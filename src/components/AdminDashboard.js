@@ -405,8 +405,7 @@ const AdminDashboard = () => {
                       <Form.Control
                         name="purpose"
                         placeholder="Purpose"
-                        as="textarea"
-                        rows={3}
+                        type="text"
                         value={editingBooking.purpose}
                         onChange={handleEditInputChange}
                         className="mb-3"
@@ -492,8 +491,7 @@ const AdminDashboard = () => {
                       <Form.Control
                         name="purpose"
                         placeholder="Purpose"
-                        as="textarea"
-                        rows={3}
+                        type="text"
                         value={newBooking.purpose}
                         onChange={handleInputChange}
                         className="mb-3"
