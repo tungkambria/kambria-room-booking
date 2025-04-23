@@ -14,6 +14,14 @@ const Header = () => {
           </div>
           <span className="brand-text">Kambria Meeting Room Booking</span>
         </Navbar.Brand>
+        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+        <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
+          <Navbar.Text>
+            <Link to="/admin" className="admin-link">
+              Admin Dashboard
+            </Link>
+          </Navbar.Text>
+        </Navbar.Collapse>
       </Container>
     </Navbar>
   );
