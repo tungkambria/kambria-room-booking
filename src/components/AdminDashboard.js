@@ -18,11 +18,11 @@ import {
   Button,
   Card,
   Table,
-  Badge,
   Alert,
 } from "react-bootstrap";
 import "./AdminDashboard.css";
 import AuthGuard from "./AuthGuard";
+import { formatRecurrenceInfo } from "../utils";
 
 const AdminDashboard = () => {
   const [bookings, setBookings] = useState([]);
@@ -34,6 +34,7 @@ const AdminDashboard = () => {
     name: "",
     purpose: "",
   });
+  const [editingBooking, setEditingBooking] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [newRoom, setNewRoom] = useState("");
   const [editingRoomId, setEditingRoomId] = useState(null);
@@ -132,9 +133,13 @@ const AdminDashboard = () => {
     setNewBooking((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditingBooking((prev) => ({ ...prev, [name]: value }));
+  };
+
   const createBooking = async () => {
     try {
-      // Find the room ID from the room name
       const roomQuery = query(
         collection(db, "rooms"),
         where("name", "==", newBooking.room)
@@ -184,6 +189,36 @@ const AdminDashboard = () => {
     }
   };
 
+  const updateBooking = async () => {
+    try {
+      const bookingRef = doc(
+        db,
+        "rooms",
+        editingBooking.roomId,
+        "bookings",
+        editingBooking.id
+      );
+      await updateDoc(bookingRef, {
+        name: editingBooking.name,
+        date: editingBooking.date,
+        startTime: editingBooking.startTime,
+        endTime: editingBooking.endTime,
+        purpose: editingBooking.purpose,
+        isRecurring: editingBooking.isRecurring || false,
+        recurrenceType: editingBooking.recurrenceType || null,
+        recurrenceEndDate: editingBooking.recurrenceEndDate || null,
+        recurrenceDays: editingBooking.recurrenceDays || [],
+      });
+
+      setEditingBooking(null);
+      fetchBookings();
+      showNotification("Booking updated successfully");
+    } catch (error) {
+      showNotification("Error updating booking", "danger");
+      console.error("Error updating booking:", error);
+    }
+  };
+
   const deleteBooking = async (id, roomId) => {
     try {
       const bookingRef = doc(db, "rooms", roomId, "bookings", id);
@@ -194,6 +229,17 @@ const AdminDashboard = () => {
       showNotification("Error deleting booking", "danger");
       console.error("Error deleting booking:", error);
     }
+  };
+
+  const startEditing = (booking) => {
+    setEditingBooking({
+      ...booking,
+      date: new Date(booking.date).toISOString().split("T")[0],
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingBooking(null);
   };
 
   return (
@@ -308,65 +354,151 @@ const AdminDashboard = () => {
           </Tab>
 
           <Tab eventKey="bookings" title="Manage Bookings">
-            <Card className="mb-4 admin-card">
-              <Card.Header className="card-header">
-                Create New Booking
-              </Card.Header>
-              <Card.Body>
-                <Form className="booking-form">
-                  <div className="form-row">
-                    <Form.Select
-                      name="room"
-                      value={newBooking.room}
-                      onChange={handleInputChange}
-                      className="mb-3"
-                    >
-                      <option value="">Select a room</option>
-                      {rooms.map((room) => (
-                        <option key={room.id} value={room.name}>
-                          {room.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    <Form.Control
-                      name="date"
-                      placeholder="Date"
-                      type="date"
-                      value={newBooking.date}
-                      onChange={handleInputChange}
-                      className="mb-3"
-                    />
-                  </div>
-                  <div className="form-row">
-                    <Form.Control
-                      name="startTime"
-                      placeholder="Start Time"
-                      type="time"
-                      value={newBooking.startTime}
-                      onChange={handleInputChange}
-                      className="mb-3"
-                    />
-                    <Form.Control
-                      name="endTime"
-                      placeholder="End Time"
-                      type="time"
-                      value={newBooking.endTime}
-                      onChange={handleInputChange}
-                      className="mb-3"
-                    />
-                  </div>
-                  <div className="form-row">
-                    <Form.Control
-                      name="purpose"
-                      placeholder="Purpose"
-                      as="textarea"
-                      rows={3}
-                      value={newBooking.purpose}
-                      onChange={handleInputChange}
-                      className="mb-3"
-                    />
-                  </div>
-                  <div className="form-row">
+            {editingBooking ? (
+              <Card className="mb-4 admin-card">
+                <Card.Header className="card-header">Edit Booking</Card.Header>
+                <Card.Body>
+                  <Form className="booking-form">
+                    <div className="form-row">
+                      <Form.Select
+                        name="room"
+                        value={editingBooking.room}
+                        onChange={handleEditInputChange}
+                        className="mb-3"
+                        disabled
+                      >
+                        <option value="">Select a room</option>
+                        {rooms.map((room) => (
+                          <option key={room.id} value={room.name}>
+                            {room.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Control
+                        name="date"
+                        placeholder="Date"
+                        type="date"
+                        value={editingBooking.date}
+                        onChange={handleEditInputChange}
+                        className="mb-3"
+                      />
+                    </div>
+                    <div className="form-row">
+                      <Form.Control
+                        name="startTime"
+                        placeholder="Start Time"
+                        type="time"
+                        value={editingBooking.startTime}
+                        onChange={handleEditInputChange}
+                        className="mb-3"
+                      />
+                      <Form.Control
+                        name="endTime"
+                        placeholder="End Time"
+                        type="time"
+                        value={editingBooking.endTime}
+                        onChange={handleEditInputChange}
+                        className="mb-3"
+                      />
+                    </div>
+                    <div className="form-row">
+                      <Form.Control
+                        name="purpose"
+                        placeholder="Purpose"
+                        as="textarea"
+                        rows={3}
+                        value={editingBooking.purpose}
+                        onChange={handleEditInputChange}
+                        className="mb-3"
+                      />
+                    </div>
+                    <div className="form-row">
+                      <Form.Control
+                        name="name"
+                        placeholder="Name"
+                        value={editingBooking.name}
+                        onChange={handleEditInputChange}
+                        className="mb-3"
+                      />
+                      <div>
+                        <Button
+                          variant="success"
+                          onClick={updateBooking}
+                          className="action-button me-2"
+                        >
+                          Save Changes
+                        </Button>
+                        <Button
+                          variant="outline-secondary"
+                          onClick={cancelEditing}
+                          className="action-button"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </Form>
+                </Card.Body>
+              </Card>
+            ) : (
+              <Card className="mb-4 admin-card">
+                <Card.Header className="card-header">
+                  Create New Booking
+                </Card.Header>
+                <Card.Body>
+                  <Form className="booking-form">
+                    <div className="form-row">
+                      <Form.Select
+                        name="room"
+                        value={newBooking.room}
+                        onChange={handleInputChange}
+                        className="mb-3"
+                      >
+                        <option value="">Select a room</option>
+                        {rooms.map((room) => (
+                          <option key={room.id} value={room.name}>
+                            {room.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Control
+                        name="date"
+                        placeholder="Date"
+                        type="date"
+                        value={newBooking.date}
+                        onChange={handleInputChange}
+                        className="mb-3"
+                      />
+                    </div>
+                    <div className="form-row">
+                      <Form.Control
+                        name="startTime"
+                        placeholder="Start Time"
+                        type="time"
+                        value={newBooking.startTime}
+                        onChange={handleInputChange}
+                        className="mb-3"
+                      />
+                      <Form.Control
+                        name="endTime"
+                        placeholder="End Time"
+                        type="time"
+                        value={newBooking.endTime}
+                        onChange={handleInputChange}
+                        className="mb-3"
+                      />
+                    </div>
+                    <div className="form-row">
+                      <Form.Control
+                        name="purpose"
+                        placeholder="Purpose"
+                        as="textarea"
+                        rows={3}
+                        value={newBooking.purpose}
+                        onChange={handleInputChange}
+                        className="mb-3"
+                      />
+                    </div>
                     <Form.Control
                       name="name"
                       placeholder="Name"
@@ -381,10 +513,10 @@ const AdminDashboard = () => {
                     >
                       Create Booking
                     </Button>
-                  </div>
-                </Form>
-              </Card.Body>
-            </Card>
+                  </Form>
+                </Card.Body>
+              </Card>
+            )}
 
             <Card className="admin-card">
               <Card.Header className="card-header">All Bookings</Card.Header>
@@ -397,7 +529,7 @@ const AdminDashboard = () => {
                       <th>Time</th>
                       <th>Name</th>
                       <th>Purpose</th>
-                      <th>Status</th>
+                      <th>Recurrence</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -411,12 +543,16 @@ const AdminDashboard = () => {
                         </td>
                         <td>{b.name}</td>
                         <td>{b.purpose}</td>
-                        <td>
-                          <Badge bg={b.approved ? "success" : "warning"}>
-                            {b.approved ? "Approved" : "Pending"}
-                          </Badge>
-                        </td>
+                        <td>{formatRecurrenceInfo(b)}</td>
                         <td className="actions-cell">
+                          <Button
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => startEditing(b)}
+                            className="action-button me-2"
+                          >
+                            Edit
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline-danger"
