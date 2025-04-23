@@ -29,6 +29,7 @@ const AdminDashboard = () => {
     startTime: "",
     endTime: "",
     name: "",
+    purpose: "", // Add purpose field
     approved: false,
   });
   const [rooms, setRooms] = useState([]);
@@ -299,6 +300,17 @@ const AdminDashboard = () => {
                 </div>
                 <div className="form-row">
                   <Form.Control
+                    name="purpose"
+                    placeholder="Purpose"
+                    as="textarea"
+                    rows={3}
+                    value={newBooking.purpose}
+                    onChange={handleInputChange}
+                    className="mb-3"
+                  />
+                </div>
+                <div className="form-row">
+                  <Form.Control
                     name="name"
                     placeholder="Name"
                     value={newBooking.name}
@@ -327,6 +339,7 @@ const AdminDashboard = () => {
                     <th>Date</th>
                     <th>Time</th>
                     <th>Name</th>
+                    <th>Purpose</th> {/* New column */}
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
@@ -335,11 +348,12 @@ const AdminDashboard = () => {
                   {bookings.map((b) => (
                     <tr key={b.id}>
                       <td>{b.room}</td>
-                      <td>{new Date(b.date).toLocaleDateString()}</td>
+                      <td>{new Date(b.date).toLocaleDateString("vi")}</td>
                       <td>
                         {b.startTime} - {b.endTime}
                       </td>
                       <td>{b.name}</td>
+                      <td>{b.purpose}</td> {/* New cell */}
                       <td>
                         <Badge bg={b.approved ? "success" : "warning"}>
                           {b.approved ? "Approved" : "Pending"}

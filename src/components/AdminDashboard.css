@@ -59,7 +59,7 @@
 
 .booking-form .form-row {
   display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
+  grid-template-columns: 1fr !important;
   gap: 15px !important;
   margin-bottom: 15px !important;
 }

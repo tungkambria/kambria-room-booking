@@ -23,7 +23,7 @@ const CalendarView = ({ room, bookings }) => {
   const events = bookings
     .filter((b) => b.room === room)
     .map((b) => ({
-      title: `${b.name} (${b.room})`,
+      title: `${b.name} - ${b.purpose || "Meeting"} (${b.room})`, // Include purpose
       start: new Date(`${b.date}T${b.startTime}`),
       end: new Date(`${b.date}T${b.endTime}`),
       allDay: false,

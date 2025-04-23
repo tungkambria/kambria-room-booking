@@ -37,6 +37,7 @@ const BookingList = ({ room, bookings, setBookings }) => {
                 <th>
                   <FontAwesomeIcon icon={faClock} className="me-2" /> Time
                 </th>
+                <th>Purpose</th> {/* New column */}
                 <th>Status</th>
               </tr>
             </thead>
@@ -48,6 +49,7 @@ const BookingList = ({ room, bookings, setBookings }) => {
                   <td>
                     {b.startTime} - {b.endTime}
                   </td>
+                  <td>{b.purpose}</td> {/* New cell */}
                   <td>
                     <span
                       className={`status-badge ${
