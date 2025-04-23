@@ -89,3 +89,14 @@
     opacity: 1 !important;
   }
 }
+.login-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.login-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+}
