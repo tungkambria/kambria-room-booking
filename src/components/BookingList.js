@@ -44,7 +44,7 @@ const BookingList = ({ room, bookings, setBookings }) => {
               {bookings.map((b, i) => (
                 <tr key={i}>
                   <td>{b.name}</td>
-                  <td>{new Date(b.date).toLocaleDateString()}</td>
+                  <td>{new Date(b.date).toLocaleDateString("vi")}</td>
                   <td>
                     {b.startTime} - {b.endTime}
                   </td>
