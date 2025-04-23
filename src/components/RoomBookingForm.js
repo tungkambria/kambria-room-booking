@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Button, Form, Card, Row, Col } from "react-bootstrap"; // Add Row and Col imports
+import { Button, Form, Card, Row, Col, Alert } from "react-bootstrap";
 import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import "./RoomBookingForm.css";
 import $ from "jquery";
 import "bootstrap-datepicker";
@@ -14,7 +14,32 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [error, setError] = useState(null);
+
+  const formatDateGMT7 = (date) => {
+    // Adjust for GMT+7 (7 hours ahead of UTC)
+    date.setHours(date.getHours() + 7);
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const getTodayGMT7 = () => {
+    const today = new Date();
+    today.setHours(today.getHours() + 7); // Adjust to GMT+7
+    return new Date(today.setHours(0, 0, 0, 0)); // Set to midnight
+  };
+
   useEffect(() => {
+    const today = getTodayGMT7();
+    const todayFormatted = `${String(today.getDate()).padStart(
+      2,
+      "0"
+    )}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+
     // Initialize input mask for DD/MM/YYYY format
     const inputMask = Inputmask({
       mask: "99/99/9999",
@@ -27,27 +52,29 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
         const value = this.value;
         const [day, month, year] = value.split("/").map(Number);
         // Validate date
-        const date = new Date(year, month - 1, day);
+        const selectedDate = new Date(year, month - 1, day);
+        const today = getTodayGMT7();
+
+        if (selectedDate < today) {
+          setError("Cannot book for past dates");
+          return;
+        }
+
         if (
-          date.getFullYear() === year &&
-          date.getMonth() === month - 1 &&
-          date.getDate() === day
+          selectedDate.getFullYear() === year &&
+          selectedDate.getMonth() === month - 1 &&
+          selectedDate.getDate() === day
         ) {
-          setDate((prev) => ({
-            ...prev,
-            day: day.toString(),
-            month: month.toString(),
-            year: year.toString(),
-          }));
+          setDate(formatDateGMT7(selectedDate));
         }
       },
     }).mask("#booking-date");
 
-    // Initialize bootstrap-datepicker
+    // Initialize bootstrap-datepicker with minDate set to today
     $("#booking-date")
       .datepicker({
         format: "dd/mm/yyyy",
-        startDate: "01/01/1900",
+        startDate: todayFormatted, // Set minimum date to today
         endDate: "31/12/2100",
         language: "en",
         autoclose: true,
@@ -55,13 +82,15 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       })
       .on("changeDate", (e) => {
         // Handle date selection via datepicker
-        const date = e.date;
-        setDate((prev) => ({
-          ...prev,
-          day: date.getDate().toString(),
-          month: (date.getMonth() + 1).toString(),
-          year: date.getFullYear().toString(),
-        }));
+        const selectedDate = e.date;
+        const today = getTodayGMT7();
+
+        if (selectedDate < today) {
+          setError("Cannot book for past dates");
+          return;
+        }
+
+        setDate(formatDateGMT7(selectedDate));
       });
 
     // Cleanup on component unmount
@@ -71,8 +100,66 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     };
   }, [setDate]);
 
+  const checkTimeSlotAvailability = async () => {
+    if (!date || !startTime || !endTime || !selectedRoom) return false;
+
+    // Convert times to minutes for easier comparison
+    const [startHours, startMinutes] = startTime.split(":").map(Number);
+    const [endHours, endMinutes] = endTime.split(":").map(Number);
+    const newStart = startHours * 60 + startMinutes;
+    const newEnd = endHours * 60 + endMinutes;
+
+    if (newStart >= newEnd) {
+      setError("End time must be after start time");
+      return false;
+    }
+
+    try {
+      const q = query(
+        collection(db, "bookings"),
+        where("room", "==", selectedRoom),
+        where("date", "==", date)
+      );
+      const snapshot = await getDocs(q);
+
+      for (const doc of snapshot.docs) {
+        const booking = doc.data();
+        const [existingStartHours, existingStartMinutes] = booking.startTime
+          .split(":")
+          .map(Number);
+        const [existingEndHours, existingEndMinutes] = booking.endTime
+          .split(":")
+          .map(Number);
+        const existingStart = existingStartHours * 60 + existingStartMinutes;
+        const existingEnd = existingEndHours * 60 + existingEndMinutes;
+
+        if (
+          (newStart >= existingStart && newStart < existingEnd) ||
+          (newEnd > existingStart && newEnd <= existingEnd) ||
+          (newStart <= existingStart && newEnd >= existingEnd)
+        ) {
+          setError(
+            `Time slot conflicts with an existing booking (${booking.startTime} - ${booking.endTime})`
+          );
+          return false;
+        }
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Error checking time slots:", err);
+      setError("Error checking time slot availability");
+      return false;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+
+    // Validate time slot
+    const isAvailable = await checkTimeSlotAvailability();
+    if (!isAvailable) return;
 
     const newBooking = {
       name,
@@ -102,6 +189,7 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       setPurpose("");
     } catch (error) {
       console.error("Error adding booking: ", error);
+      setError("Error submitting booking");
     }
   };
 
@@ -109,6 +197,11 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     <Card className="booking-form-card">
       <Card.Body>
         <h4 className="form-title">Book {selectedRoom}</h4>
+        {error && (
+          <Alert variant="danger" onClose={() => setError(null)} dismissible>
+            {error}
+          </Alert>
+        )}
         <Form onSubmit={handleSubmit}>
           <Row>
             <Col md={6}>
@@ -160,7 +253,6 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
             </Col>
           </Row>
 
-          {/* Full-width Purpose field */}
           <Row>
             <Col>
               <Form.Group className="mb-3">
@@ -171,7 +263,7 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="Enter the purpose of your booking"
-                  style={{ width: "100%" }} // Ensure full width
+                  style={{ width: "100%" }}
                 />
               </Form.Group>
             </Col>
