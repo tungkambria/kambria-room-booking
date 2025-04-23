@@ -3,7 +3,7 @@ import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { Table, Card } from "react-bootstrap";
 import "./BookingList.css";
-import { weekDays } from "../utils";
+import { formatRecurrenceInfo } from "../utils";
 
 const BookingList = ({ room, bookings, setBookings }) => {
   const [roomName, setRoomName] = useState(room.name);
@@ -48,22 +48,7 @@ const BookingList = ({ room, bookings, setBookings }) => {
                     {b.startTime} - {b.endTime}
                   </td>
                   <td>{b.purpose}</td>
-                  <td>
-                    {b.isRecurring && (
-                      <>
-                        {b.recurrenceType} until{" "}
-                        {new Date(b.recurrenceEndDate).toLocaleDateString()}
-                        {b.recurrenceDays.length > 0 && (
-                          <div>
-                            Days:{" "}
-                            {b.recurrenceDays
-                              .map((d) => weekDays[d].name)
-                              .join(", ")}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </td>
+                  <td>{formatRecurrenceInfo(b)}</td>
                 </tr>
               ))}
             </tbody>
