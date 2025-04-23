@@ -12,7 +12,7 @@ const Header = () => {
           <div className="logo-icon me-3">
             <FontAwesomeIcon icon={faComments} size="lg" />
           </div>
-          <span className="brand-text">Kambria Meeting Room Booking</span>
+          <span className="brand-text">KOLVN Meeting Room Booking</span>
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">

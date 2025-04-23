@@ -63,7 +63,7 @@ const AuthGuard = ({ children }) => {
   if (!user) {
     return (
       <Container className="d-flex flex-column justify-content-center align-items-center vh-100">
-        <h2 className="mb-4">Admin Dashboard Login</h2>
+        <h2 className="mb-4">User Login</h2>
         {error && (
           <Alert variant="danger" className="mb-3">
             {error}
@@ -79,11 +79,11 @@ const AuthGuard = ({ children }) => {
 
   return (
     <>
-      <div className="d-flex justify-content-end p-3">
+      <Container className="d-flex justify-content-end p-3">
         <Button variant="outline-secondary" onClick={handleLogout}>
           Logout ({user.email})
         </Button>
-      </div>
+      </Container>
       {children}
     </>
   );

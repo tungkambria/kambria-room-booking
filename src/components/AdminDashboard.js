@@ -7,6 +7,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  query,
+  where,
 } from "firebase/firestore";
 import {
   Container,
@@ -30,8 +32,7 @@ const AdminDashboard = () => {
     startTime: "",
     endTime: "",
     name: "",
-    purpose: "", // Add purpose field
-    approved: false,
+    purpose: "",
   });
   const [rooms, setRooms] = useState([]);
   const [newRoom, setNewRoom] = useState("");
@@ -51,14 +52,37 @@ const AdminDashboard = () => {
   };
 
   const fetchBookings = async () => {
-    const snap = await getDocs(collection(db, "bookings"));
-    setBookings(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    try {
+      const roomsSnapshot = await getDocs(collection(db, "rooms"));
+      const roomsData = roomsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const allBookings = [];
+      for (const room of roomsData) {
+        const bookingsRef = collection(db, "rooms", room.id, "bookings");
+        const bookingsSnapshot = await getDocs(bookingsRef);
+        const roomBookings = bookingsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          room: room.name,
+          roomId: room.id,
+          ...doc.data(),
+        }));
+        allBookings.push(...roomBookings);
+      }
+
+      setBookings(allBookings);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      showNotification("Error fetching bookings", "danger");
+    }
   };
 
   useEffect(() => {
     fetchBookings();
     fetchRooms();
-  }, []);
+  });
 
   const createRoom = async () => {
     if (!newRoom.trim()) {
@@ -110,7 +134,36 @@ const AdminDashboard = () => {
 
   const createBooking = async () => {
     try {
-      await addDoc(collection(db, "bookings"), newBooking);
+      // Find the room ID from the room name
+      const roomQuery = query(
+        collection(db, "rooms"),
+        where("name", "==", newBooking.room)
+      );
+      const roomSnapshot = await getDocs(roomQuery);
+
+      if (roomSnapshot.empty) {
+        showNotification("Room not found", "danger");
+        return;
+      }
+
+      const roomId = roomSnapshot.docs[0].id;
+      const roomRef = doc(db, "rooms", roomId);
+      const bookingsRef = collection(roomRef, "bookings");
+
+      const bookingData = {
+        name: newBooking.name,
+        date: newBooking.date,
+        startTime: newBooking.startTime,
+        endTime: newBooking.endTime,
+        purpose: newBooking.purpose,
+        isRecurring: newBooking.isRecurring || false,
+        recurrenceType: newBooking.recurrenceType || null,
+        recurrenceEndDate: newBooking.recurrenceEndDate || null,
+        recurrenceDays: newBooking.recurrenceDays || [],
+      };
+
+      await addDoc(bookingsRef, bookingData);
+
       fetchBookings();
       setNewBooking({
         room: "",
@@ -118,7 +171,11 @@ const AdminDashboard = () => {
         startTime: "",
         endTime: "",
         name: "",
-        approved: false,
+        purpose: "",
+        isRecurring: false,
+        recurrenceType: null,
+        recurrenceEndDate: "",
+        recurrenceDays: [],
       });
       showNotification("Booking created successfully");
     } catch (error) {
@@ -127,20 +184,10 @@ const AdminDashboard = () => {
     }
   };
 
-  const toggleApproval = async (id, approved) => {
+  const deleteBooking = async (id, roomId) => {
     try {
-      await updateDoc(doc(db, "bookings", id), { approved: !approved });
-      fetchBookings();
-      showNotification(`Booking ${approved ? "unapproved" : "approved"}`);
-    } catch (error) {
-      showNotification("Error updating booking", "danger");
-      console.error("Error updating booking:", error);
-    }
-  };
-
-  const deleteBooking = async (id) => {
-    try {
-      await deleteDoc(doc(db, "bookings", id));
+      const bookingRef = doc(db, "rooms", roomId, "bookings", id);
+      await deleteDoc(bookingRef);
       fetchBookings();
       showNotification("Booking deleted successfully");
     } catch (error) {
@@ -268,13 +315,19 @@ const AdminDashboard = () => {
               <Card.Body>
                 <Form className="booking-form">
                   <div className="form-row">
-                    <Form.Control
+                    <Form.Select
                       name="room"
-                      placeholder="Room"
                       value={newBooking.room}
                       onChange={handleInputChange}
                       className="mb-3"
-                    />
+                    >
+                      <option value="">Select a room</option>
+                      {rooms.map((room) => (
+                        <option key={room.id} value={room.name}>
+                          {room.name}
+                        </option>
+                      ))}
+                    </Form.Select>
                     <Form.Control
                       name="date"
                       placeholder="Date"
@@ -343,7 +396,7 @@ const AdminDashboard = () => {
                       <th>Date</th>
                       <th>Time</th>
                       <th>Name</th>
-                      <th>Purpose</th> {/* New column */}
+                      <th>Purpose</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -357,7 +410,7 @@ const AdminDashboard = () => {
                           {b.startTime} - {b.endTime}
                         </td>
                         <td>{b.name}</td>
-                        <td>{b.purpose}</td> {/* New cell */}
+                        <td>{b.purpose}</td>
                         <td>
                           <Badge bg={b.approved ? "success" : "warning"}>
                             {b.approved ? "Approved" : "Pending"}
@@ -366,18 +419,8 @@ const AdminDashboard = () => {
                         <td className="actions-cell">
                           <Button
                             size="sm"
-                            variant={
-                              b.approved ? "outline-warning" : "outline-success"
-                            }
-                            onClick={() => toggleApproval(b.id, b.approved)}
-                            className="me-2 action-button"
-                          >
-                            {b.approved ? "Unapprove" : "Approve"}
-                          </Button>
-                          <Button
-                            size="sm"
                             variant="outline-danger"
-                            onClick={() => deleteBooking(b.id)}
+                            onClick={() => deleteBooking(b.id, b.roomId)}
                             className="action-button"
                           >
                             Delete

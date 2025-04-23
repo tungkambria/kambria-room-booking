@@ -8,6 +8,7 @@ import CalendarView from "./components/CalendarView";
 import BookingList from "./components/BookingList";
 import AdminDashboard from "./components/AdminDashboard";
 import "./App.css";
+import AuthGuard from "./components/AuthGuard";
 
 function App() {
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -21,38 +22,40 @@ function App() {
           <Route
             path="/"
             element={
-              <Container className="py-4">
-                <div className="booking-container">
-                  <div className="room-selection-section">
-                    <RoomList onSelect={setSelectedRoom} />
-                  </div>
-
-                  {selectedRoom && (
-                    <div className="booking-details-section">
-                      <div className="booking-form-container">
-                        <RoomBookingForm
-                          selectedRoom={selectedRoom}
-                          setBookings={setBookings}
-                        />
-                      </div>
-                      <div className="calendar-container">
-                        <CalendarView
-                          room={selectedRoom}
-                          bookings={bookings}
-                          setBookings={setBookings}
-                        />
-                      </div>
-                      <div className="booking-list-container">
-                        <BookingList
-                          room={selectedRoom}
-                          bookings={bookings}
-                          setBookings={setBookings}
-                        />
-                      </div>
+              <AuthGuard>
+                <Container className="py-4">
+                  <div className="booking-container">
+                    <div className="room-selection-section">
+                      <RoomList onSelect={setSelectedRoom} />
                     </div>
-                  )}
-                </div>
-              </Container>
+
+                    {selectedRoom && (
+                      <div className="booking-details-section">
+                        <div className="booking-form-container">
+                          <RoomBookingForm
+                            selectedRoom={selectedRoom}
+                            setBookings={setBookings}
+                          />
+                        </div>
+                        <div className="calendar-container">
+                          <CalendarView
+                            room={selectedRoom}
+                            bookings={bookings}
+                            setBookings={setBookings}
+                          />
+                        </div>
+                        <div className="booking-list-container">
+                          <BookingList
+                            room={selectedRoom}
+                            bookings={bookings}
+                            setBookings={setBookings}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Container>
+              </AuthGuard>
             }
           />
           <Route path="/admin" element={<AdminDashboard />} />

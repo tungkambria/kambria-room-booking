@@ -1,63 +1,68 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { db } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { Table, Card } from "react-bootstrap";
 import "./BookingList.css";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faUser,
-  faCalendarAlt,
-  faClock,
-} from "@fortawesome/free-solid-svg-icons";
+import { weekDays } from "../utils";
 
 const BookingList = ({ room, bookings, setBookings }) => {
+  const [roomName, setRoomName] = useState(room.name);
+
   useEffect(() => {
     const fetchBookings = async () => {
-      const q = query(collection(db, "bookings"), where("room", "==", room));
-      const snapshot = await getDocs(q);
-      setBookings(snapshot.docs.map((doc) => doc.data()));
+      if (!room || !room.docId) return;
+
+      const bookingsRef = collection(db, "rooms", room.docId, "bookings");
+      const snapshot = await getDocs(bookingsRef);
+      setBookings(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     };
-    if (room) fetchBookings();
+
+    fetchBookings();
   }, [room, setBookings]);
+
+  useEffect(() => {
+    setRoomName(room.name);
+  }, [room]);
 
   return (
     <Card className="booking-list-card">
       <Card.Body>
-        <h4 className="booking-list-title">Upcoming Bookings for {room}</h4>
+        <h4 className="booking-list-title">Upcoming Bookings for {roomName}</h4>
         <div className="table-responsive">
           <Table hover className="booking-table">
             <thead>
               <tr>
-                <th>
-                  <FontAwesomeIcon icon={faUser} className="me-2" /> Name
-                </th>
-                <th>
-                  <FontAwesomeIcon icon={faCalendarAlt} className="me-2" /> Date
-                </th>
-                <th>
-                  <FontAwesomeIcon icon={faClock} className="me-2" /> Time
-                </th>
-                <th>Purpose</th> {/* New column */}
-                <th>Status</th>
+                <th>Name</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Purpose</th>
+                <th>Recurrence</th>
               </tr>
             </thead>
             <tbody>
               {bookings.map((b, i) => (
-                <tr key={i}>
+                <tr key={b.id || i}>
                   <td>{b.name}</td>
                   <td>{new Date(b.date).toLocaleDateString("vi")}</td>
                   <td>
                     {b.startTime} - {b.endTime}
                   </td>
-                  <td>{b.purpose}</td> {/* New cell */}
+                  <td>{b.purpose}</td>
                   <td>
-                    <span
-                      className={`status-badge ${
-                        b.approved ? "approved" : "pending"
-                      }`}
-                    >
-                      {b.approved ? "Approved" : "Pending"}
-                    </span>
+                    {b.isRecurring && (
+                      <>
+                        {b.recurrenceType} until{" "}
+                        {new Date(b.recurrenceEndDate).toLocaleDateString()}
+                        {b.recurrenceDays.length > 0 && (
+                          <div>
+                            Days:{" "}
+                            {b.recurrenceDays
+                              .map((d) => weekDays[d].name)
+                              .join(", ")}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

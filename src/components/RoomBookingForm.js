@@ -1,12 +1,45 @@
-import { useState, useEffect } from "react";
-import { Button, Form, Card, Row, Col, Alert } from "react-bootstrap";
+import { useState } from "react";
+import { Button, Form, Card, Row, Col, Alert, Modal } from "react-bootstrap";
 import { db } from "../firebase";
-import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  doc,
+} from "firebase/firestore";
 import "./RoomBookingForm.css";
-import $ from "jquery";
-import "bootstrap-datepicker";
-import "bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css";
-import Inputmask from "inputmask";
+import {
+  formatDateGMT7,
+  getTodayGMT7,
+  generateOccurrences,
+  weekDays,
+} from "../utils";
+
+// Confirmation Modal Component
+const ICSConfirmationModal = ({ show, onConfirm, onCancel, booking }) => {
+  return (
+    <Modal show={show} onHide={onCancel} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Download Calendar Event</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        Would you like to download an ICS file for the booking of{" "}
+        {booking?.room.name} on {booking?.date} from {booking?.startTime} to{" "}
+        {booking?.endTime}?
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={onConfirm}>
+          Download
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
 
 const RoomBookingForm = ({ selectedRoom, setBookings }) => {
   const [name, setName] = useState("");
@@ -16,145 +49,109 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
   const [purpose, setPurpose] = useState("");
   const [error, setError] = useState(null);
 
-  const formatDateGMT7 = (date) => {
-    // Adjust for GMT+7 (7 hours ahead of UTC)
-    date.setHours(date.getHours() + 7);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState("weekly");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+  const [recurrenceDays, setRecurrenceDays] = useState([]);
 
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+  // State for confirmation modal
+  const [showICSModal, setShowICSModal] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState(null);
 
-    return `${year}-${month}-${day}`;
+  const handleRecurrenceDayChange = (dayId) => {
+    setRecurrenceDays((prev) =>
+      prev.includes(dayId)
+        ? prev.filter((id) => id !== dayId)
+        : [...prev, dayId]
+    );
   };
 
-  const getTodayGMT7 = () => {
-    const today = new Date();
-    today.setHours(today.getHours() + 7); // Adjust to GMT+7
-    return new Date(today.setHours(0, 0, 0, 0)); // Set to midnight
-  };
-
-  useEffect(() => {
+  const handleDateChange = (e, isRecurrenceEndDate = false) => {
+    const selectedDate = new Date(e.target.value);
     const today = getTodayGMT7();
-    const todayFormatted = `${String(today.getDate()).padStart(
-      2,
-      "0"
-    )}/${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
 
-    // Initialize input mask for DD/MM/YYYY format
-    const inputMask = Inputmask({
-      mask: "99/99/9999",
-      placeholder: "DD/MM/YYYY",
-      alias: "datetime",
-      inputFormat: "dd/mm/yyyy",
-      clearIncomplete: true,
-      oncomplete: function () {
-        // Trigger when the input mask is fully completed
-        const value = this.value;
-        const [day, month, year] = value.split("/").map(Number);
-        // Validate date
-        const selectedDate = new Date(year, month - 1, day);
-        const today = getTodayGMT7();
+    if (selectedDate < today) {
+      setError(
+        isRecurrenceEndDate
+          ? "Recurrence end date cannot be in the past"
+          : "Cannot book for past dates"
+      );
+      return;
+    }
 
-        if (selectedDate < today) {
-          setError("Cannot book for past dates");
-          return;
-        }
-
-        if (
-          selectedDate.getFullYear() === year &&
-          selectedDate.getMonth() === month - 1 &&
-          selectedDate.getDate() === day
-        ) {
-          setDate(formatDateGMT7(selectedDate));
-        }
-      },
-    }).mask("#booking-date");
-
-    // Initialize bootstrap-datepicker with minDate set to today
-    $("#booking-date")
-      .datepicker({
-        format: "dd/mm/yyyy",
-        startDate: todayFormatted, // Set minimum date to today
-        endDate: "31/12/2100",
-        language: "en",
-        autoclose: true,
-        todayHighlight: true,
-      })
-      .on("changeDate", (e) => {
-        // Handle date selection via datepicker
-        const selectedDate = e.date;
-        const today = getTodayGMT7();
-
-        if (selectedDate < today) {
-          setError("Cannot book for past dates");
-          return;
-        }
-
-        setDate(formatDateGMT7(selectedDate));
-      });
-
-    // Cleanup on component unmount
-    return () => {
-      $("#booking-date").datepicker("destroy");
-      inputMask.remove();
-    };
-  }, [setDate]);
+    const formattedDate = formatDateGMT7(selectedDate);
+    if (isRecurrenceEndDate) {
+      setRecurrenceEndDate(formattedDate);
+    } else {
+      setDate(formattedDate);
+    }
+    setError(null);
+  };
 
   const checkTimeSlotAvailability = async () => {
     if (!date || !startTime || !endTime || !selectedRoom) return false;
 
-    // Convert times to minutes for easier comparison
-    const [startHours, startMinutes] = startTime.split(":").map(Number);
-    const [endHours, endMinutes] = endTime.split(":").map(Number);
-    const newStart = startHours * 60 + startMinutes;
-    const newEnd = endHours * 60 + endMinutes;
+    const occurrences = isRecurring
+      ? generateOccurrences(
+          new Date(date),
+          new Date(recurrenceEndDate),
+          recurrenceType,
+          recurrenceDays
+        )
+      : [new Date(date)];
 
-    if (newStart >= newEnd) {
-      setError("End time must be after start time");
-      return false;
-    }
+    for (const occurrence of occurrences) {
+      const formattedDate = formatDateGMT7(occurrence);
 
-    try {
-      const q = query(
-        collection(db, "bookings"),
-        where("room", "==", selectedRoom),
-        where("date", "==", date)
-      );
-      const snapshot = await getDocs(q);
+      const [startHours, startMinutes] = startTime.split(":").map(Number);
+      const [endHours, endMinutes] = endTime.split(":").map(Number);
+      const newStart = startHours * 60 + startMinutes;
+      const newEnd = endHours * 60 + endMinutes;
 
-      for (const doc of snapshot.docs) {
-        const booking = doc.data();
-        const [existingStartHours, existingStartMinutes] = booking.startTime
-          .split(":")
-          .map(Number);
-        const [existingEndHours, existingEndMinutes] = booking.endTime
-          .split(":")
-          .map(Number);
-        const existingStart = existingStartHours * 60 + existingStartMinutes;
-        const existingEnd = existingEndHours * 60 + existingEndMinutes;
-
-        if (
-          (newStart >= existingStart && newStart < existingEnd) ||
-          (newEnd > existingStart && newEnd <= existingEnd) ||
-          (newStart <= existingStart && newEnd >= existingEnd)
-        ) {
-          setError(
-            `Time slot conflicts with an existing booking (${booking.startTime} - ${booking.endTime})`
-          );
-          return false;
-        }
+      if (newStart >= newEnd) {
+        setError("End time must be after start time");
+        return false;
       }
 
-      return true;
-    } catch (err) {
-      console.error("Error checking time slots:", err);
-      setError("Error checking time slot availability");
-      return false;
+      try {
+        const roomRef = doc(db, "rooms", selectedRoom.docId);
+        const bookingsRef = collection(roomRef, "bookings");
+        const q = query(bookingsRef, where("date", "==", formattedDate));
+        const snapshot = await getDocs(q);
+
+        for (const doc of snapshot.docs) {
+          const booking = doc.data();
+          const [existingStartHours, existingStartMinutes] = booking.startTime
+            .split(":")
+            .map(Number);
+          const [existingEndHours, existingEndMinutes] = booking.endTime
+            .split(":")
+            .map(Number);
+          const existingStart = existingStartHours * 60 + existingStartMinutes;
+          const existingEnd = existingEndHours * 60 + existingEndMinutes;
+
+          if (
+            (newStart >= existingStart && newStart < existingEnd) ||
+            (newEnd > existingStart && newEnd <= existingEnd) ||
+            (newStart <= existingStart && newEnd >= existingEnd)
+          ) {
+            setError(
+              `Time slot conflicts with an existing booking on ${formattedDate} (${booking.startTime} - ${booking.endTime})`
+            );
+            return false;
+          }
+        }
+      } catch (err) {
+        console.error("Error checking time slots:", err);
+        setError("Error checking time slot availability");
+        return false;
+      }
     }
+
+    return true;
   };
 
   const generateICSFile = (booking) => {
-    // Format date and time for ICS (YYYYMMDDTHHMMSS)
     const formatICSDateTime = (dateStr, timeStr) => {
       const [year, month, day] = dateStr.split("-");
       const [hours, minutes] = timeStr.split(":");
@@ -176,9 +173,9 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       `DTSTAMP:${timestamp}`,
       `DTSTART:${startDateTime}`,
       `DTEND:${endDateTime}`,
-      `SUMMARY:Room Booking - ${booking.room}`,
+      `SUMMARY:Room Booking - ${booking.room.name}`,
       `DESCRIPTION:Purpose: ${booking.purpose}\\nBooked by: ${booking.name}`,
-      `LOCATION:${booking.room}`,
+      `LOCATION:${booking.room.name}`,
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n");
@@ -197,13 +194,12 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     link.href = url;
     link.setAttribute(
       "download",
-      `RoomBooking-${booking.room}-${booking.date}.ics`
+      `RoomBooking-${booking.room.name}-${booking.date}.ics`
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    // Clean up the URL object
     setTimeout(() => URL.revokeObjectURL(url), 100);
   };
 
@@ -211,7 +207,6 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     e.preventDefault();
     setError(null);
 
-    // Validate time slot
     const isAvailable = await checkTimeSlotAvailability();
     if (!isAvailable) return;
 
@@ -220,20 +215,30 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       date,
       startTime,
       endTime,
-      room: selectedRoom,
-      approved: false,
       purpose,
+      room: selectedRoom,
+      isRecurring,
+      recurrenceType: isRecurring ? recurrenceType : null,
+      recurrenceEndDate: isRecurring ? recurrenceEndDate : null,
+      recurrenceDays: isRecurring ? recurrenceDays : [],
     };
 
     try {
-      // Add the new booking to Firestore
-      const docRef = await addDoc(collection(db, "bookings"), newBooking);
+      const roomRef = doc(db, "rooms", selectedRoom.docId);
+      const bookingsRef = collection(roomRef, "bookings");
+      const docRef = await addDoc(bookingsRef, {
+        ...newBooking,
+        room: selectedRoom.name, // Store only the name in Firestore
+      });
 
-      // Update local state with the new booking (including the auto-generated ID if needed)
       setBookings((prevBookings) => [
         ...prevBookings,
-        { ...newBooking, id: docRef.id },
+        { ...newBooking, id: docRef.id, room: selectedRoom },
       ]);
+
+      // Store the booking and show confirmation modal
+      setPendingBooking(newBooking);
+      setShowICSModal(true);
 
       // Clear the form
       setName("");
@@ -241,95 +246,184 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       setStartTime("");
       setEndTime("");
       setPurpose("");
-      downloadICSFile(newBooking);
+      setIsRecurring(false);
+      setRecurrenceType("weekly");
+      setRecurrenceEndDate("");
+      setRecurrenceDays([]);
     } catch (error) {
       console.error("Error adding booking: ", error);
       setError("Error submitting booking");
     }
   };
 
+  // Handle ICS download confirmation
+  const handleICSConfirm = () => {
+    if (pendingBooking) {
+      downloadICSFile(pendingBooking);
+    }
+    setShowICSModal(false);
+    setPendingBooking(null);
+  };
+
+  // Handle ICS download cancellation
+  const handleICSCancel = () => {
+    setShowICSModal(false);
+    setPendingBooking(null);
+  };
+
+  const getInputDateValue = (formattedDate) => {
+    if (!formattedDate) return "";
+    return formattedDate.split("-").reverse().join("-");
+  };
+
   return (
-    <Card className="booking-form-card">
-      <Card.Body>
-        <h4 className="form-title">Book {selectedRoom}</h4>
-        {error && (
-          <Alert variant="danger" onClose={() => setError(null)} dismissible>
-            {error}
-          </Alert>
-        )}
-        <Form onSubmit={handleSubmit}>
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Your Name</Form.Label>
-                <Form.Control
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  placeholder="Enter your name"
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Date</Form.Label>
-                <Form.Control
-                  type="text"
-                  id="booking-date"
-                  name="bookingDate"
-                  placeholder="DD/MM/YYYY"
-                  pattern="\d{2}\/\d{2}\/\d{4}"
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Start Time</Form.Label>
-                <Form.Control
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  required
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>End Time</Form.Label>
-                <Form.Control
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  required
-                />
-              </Form.Group>
-            </Col>
-          </Row>
+    <>
+      <Card className="booking-form-card">
+        <Card.Body>
+          <h4 className="form-title">Book {selectedRoom.name}</h4>
+          {error && (
+            <Alert variant="danger" onClose={() => setError(null)} dismissible>
+              {error}
+            </Alert>
+          )}
+          <Form onSubmit={handleSubmit}>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Your Name</Form.Label>
+                  <Form.Control
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    placeholder="Enter your name"
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    onChange={(e) => handleDateChange(e)}
+                    min={getInputDateValue(formatDateGMT7(getTodayGMT7()))}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Start Time</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>End Time</Form.Label>
+                  <Form.Control
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
-          <Row>
-            <Col>
-              <Form.Group className="mb-3">
-                <Form.Label>Purpose</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  placeholder="Enter the purpose of your booking"
-                  style={{ width: "100%" }}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
+            <Row>
+              <Col>
+                <Form.Group className="mb-3">
+                  <Form.Label>Purpose</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={purpose}
+                    onChange={(e) => setPurpose(e.target.value)}
+                    placeholder="Enter the purpose of your booking"
+                    style={{ width: "100%" }}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                id="recurring-meeting"
+                label="Recurring Meeting"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+              />
+            </Form.Group>
 
-          <Button type="submit" className="submit-button" size="lg">
-            Book Room
-          </Button>
-        </Form>
-      </Card.Body>
-    </Card>
+            {isRecurring && (
+              <>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Recurrence Type</Form.Label>
+                      <Form.Select
+                        value={recurrenceType}
+                        onChange={(e) => setRecurrenceType(e.target.value)}
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>End Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        onChange={(e) => handleDateChange(e, true)}
+                        min={getInputDateValue(formatDateGMT7(getTodayGMT7()))}
+                        required={isRecurring}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                {recurrenceType === "weekly" && (
+                  <Form.Group className="mb-3">
+                    <Form.Label>Repeat On</Form.Label>
+                    <div className="day-selector">
+                      {weekDays.map((day) => (
+                        <Form.Check
+                          key={day.id}
+                          type="checkbox"
+                          id={`day-${day.id}`}
+                          label={day.name}
+                          checked={recurrenceDays.includes(day.id)}
+                          onChange={() => handleRecurrenceDayChange(day.id)}
+                          inline
+                        />
+                      ))}
+                    </div>
+                  </Form.Group>
+                )}
+              </>
+            )}
+            <Button type="submit" className="submit-button" size="lg">
+              Book Room
+            </Button>
+          </Form>
+        </Card.Body>
+      </Card>
+
+      <ICSConfirmationModal
+        show={showICSModal}
+        onConfirm={handleICSConfirm}
+        onCancel={handleICSCancel}
+        booking={pendingBooking}
+      />
+    </>
   );
 };
 

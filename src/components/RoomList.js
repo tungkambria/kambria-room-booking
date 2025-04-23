@@ -14,7 +14,10 @@ const RoomList = ({ onSelect }) => {
     const fetchRooms = async () => {
       try {
         const snap = await getDocs(collection(db, "rooms"));
-        const roomList = snap.docs.map((doc) => doc.data().name);
+        const roomList = snap.docs.map((doc) => ({
+          name: doc.data().name,
+          docId: doc.id,
+        }));
         setRooms(roomList);
       } catch (error) {
         console.error("Error fetching rooms:", error);
@@ -40,14 +43,14 @@ const RoomList = ({ onSelect }) => {
       <ListGroup>
         {rooms.map((room) => (
           <ListGroup.Item
-            key={room}
+            key={room.docId}
             action
             onClick={() => onSelect(room)}
             className="room-item"
           >
             <div className="room-item-content">
               <FontAwesomeIcon icon={faDoorOpen} className="me-2" />
-              <span className="room-name">{room}</span>
+              <span className="room-name">{room.name}</span>
               <Badge bg="primary" className="availability-badge">
                 Available
               </Badge>
@@ -58,4 +61,5 @@ const RoomList = ({ onSelect }) => {
     </div>
   );
 };
+
 export default RoomList;
