@@ -153,6 +153,60 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     }
   };
 
+  const generateICSFile = (booking) => {
+    // Format date and time for ICS (YYYYMMDDTHHMMSS)
+    const formatICSDateTime = (dateStr, timeStr) => {
+      const [year, month, day] = dateStr.split("-");
+      const [hours, minutes] = timeStr.split(":");
+      return `${year}${month}${day}T${hours}${minutes}00`;
+    };
+
+    const startDateTime = formatICSDateTime(booking.date, booking.startTime);
+    const endDateTime = formatICSDateTime(booking.date, booking.endTime);
+    const now = new Date();
+    const timestamp =
+      now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Room Booking System//EN",
+      "BEGIN:VEVENT",
+      `UID:${Date.now()}@roombookingsystem`,
+      `DTSTAMP:${timestamp}`,
+      `DTSTART:${startDateTime}`,
+      `DTEND:${endDateTime}`,
+      `SUMMARY:Room Booking - ${booking.room}`,
+      `DESCRIPTION:Purpose: ${booking.purpose}\\nBooked by: ${booking.name}`,
+      `LOCATION:${booking.room}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+
+    return icsContent;
+  };
+
+  const downloadICSFile = (booking) => {
+    const icsContent = generateICSFile(booking);
+    const blob = new Blob([icsContent], {
+      type: "text/calendar;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `RoomBooking-${booking.room}-${booking.date}.ics`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Clean up the URL object
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -187,6 +241,7 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       setStartTime("");
       setEndTime("");
       setPurpose("");
+      downloadICSFile(newBooking);
     } catch (error) {
       console.error("Error adding booking: ", error);
       setError("Error submitting booking");
