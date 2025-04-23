@@ -1,3 +1,16 @@
+:root {
+  --primary-color: #3498db !important;
+  --secondary-color: #2c3e50 !important;
+  --accent-color: #e74c3c !important;
+  --light-color: #ecf0f1 !important;
+  --dark-color: #2c3e50 !important;
+  --success-color: #2ecc71 !important;
+  --warning-color: #f39c12 !important;
+  --danger-color: #e74c3c !important;
+  --border-radius: 8px !important;
+  --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
 .booking-form-card {
   border: none !important;
   border-radius: var(--border-radius) !important;
@@ -28,4 +41,72 @@
   padding: 12px !important;
   font-weight: 500 !important;
   letter-spacing: 0.5px !important;
+}
+
+/* Add these styles to RoomBookingForm.css */
+
+/* Custom Datepicker Styles */
+.datepicker {
+  border-radius: var(--border-radius) !important;
+  box-shadow: var(--box-shadow) !important;
+  border: none !important;
+  font-family: inherit !important;
+  padding: 1rem !important;
+}
+
+.datepicker-dropdown:after {
+  border-bottom-color: var(--secondary-color) !important;
+}
+
+.datepicker table tr td,
+.datepicker table tr th {
+  border-radius: var(--border-radius) !important;
+}
+
+.datepicker table tr td.day:hover,
+.datepicker table tr td.day.focused {
+  background: rgba(var(--secondary-color-rgb), 0.1) !important;
+}
+
+.datepicker table tr td.active,
+.datepicker table tr td.active:hover,
+.datepicker table tr td.active.disabled,
+.datepicker table tr td.active.disabled:hover {
+  background-color: var(--secondary-color) !important;
+  background-image: none !important;
+}
+
+.datepicker table tr td.today {
+  background-color: rgba(var(--secondary-color-rgb), 0.2) !important;
+}
+
+.datepicker table tr td.today:hover {
+  background-color: rgba(var(--secondary-color-rgb), 0.3) !important;
+}
+
+.datepicker .datepicker-switch,
+.datepicker .next,
+.datepicker .prev {
+  color: var(--secondary-color) !important;
+}
+
+.datepicker .datepicker-switch:hover,
+.datepicker .next:hover,
+.datepicker .prev:hover {
+  background: rgba(var(--secondary-color-rgb), 0.1) !important;
+}
+
+/* Date input field styling */
+#booking-date {
+  background-color: white !important;
+  border: 1px solid #dee2e6 !important;
+  border-radius: var(--border-radius) !important;
+  padding: 10px 15px !important;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+}
+
+#booking-date:focus {
+  border-color: var(--secondary-color) !important;
+  box-shadow: 0 0 0 0.2rem rgba(var(--secondary-color-rgb), 0.25) !important;
+  outline: 0 !important;
 }
