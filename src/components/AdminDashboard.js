@@ -19,10 +19,12 @@ import {
   Card,
   Table,
   Alert,
+  Row,
+  Col,
 } from "react-bootstrap";
 import "./AdminDashboard.css";
 import AuthGuard from "./AuthGuard";
-import { formatRecurrenceInfo } from "../utils";
+import { formatRecurrenceInfo, weekDays } from "../utils";
 
 const AdminDashboard = () => {
   const [bookings, setBookings] = useState([]);
@@ -33,6 +35,10 @@ const AdminDashboard = () => {
     endTime: "",
     name: "",
     purpose: "",
+    isRecurring: false,
+    recurrenceType: "weekly",
+    recurrenceEndDate: "",
+    recurrenceDays: [],
   });
   const [editingBooking, setEditingBooking] = useState(null);
   const [rooms, setRooms] = useState([]);
@@ -82,8 +88,8 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchBookings();
-    fetchRooms();
-  });
+    fetchRooms(); // eslint-disable-next-line
+  }, []);
 
   const createRoom = async () => {
     if (!newRoom.trim()) {
@@ -129,13 +135,37 @@ const AdminDashboard = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewBooking((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    if (type === "checkbox" && name === "isRecurring") {
+      setNewBooking((prev) => ({ ...prev, isRecurring: checked }));
+    } else if (name === "recurrenceDays") {
+      setNewBooking((prev) => {
+        const dayId = parseInt(value);
+        const updatedDays = prev.recurrenceDays.includes(dayId)
+          ? prev.recurrenceDays.filter((id) => id !== dayId)
+          : [...prev.recurrenceDays, dayId];
+        return { ...prev, recurrenceDays: updatedDays };
+      });
+    } else {
+      setNewBooking((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleEditInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditingBooking((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    if (type === "checkbox" && name === "isRecurring") {
+      setEditingBooking((prev) => ({ ...prev, isRecurring: checked }));
+    } else if (name === "recurrenceDays") {
+      setEditingBooking((prev) => {
+        const dayId = parseInt(value);
+        const updatedDays = prev.recurrenceDays.includes(dayId)
+          ? prev.recurrenceDays.filter((id) => id !== dayId)
+          : [...prev.recurrenceDays, dayId];
+        return { ...prev, recurrenceDays: updatedDays };
+      });
+    } else {
+      setEditingBooking((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const createBooking = async () => {
@@ -161,10 +191,14 @@ const AdminDashboard = () => {
         startTime: newBooking.startTime,
         endTime: newBooking.endTime,
         purpose: newBooking.purpose,
-        isRecurring: newBooking.isRecurring || false,
-        recurrenceType: newBooking.recurrenceType || null,
-        recurrenceEndDate: newBooking.recurrenceEndDate || null,
-        recurrenceDays: newBooking.recurrenceDays || [],
+        isRecurring: newBooking.isRecurring,
+        recurrenceType: newBooking.isRecurring
+          ? newBooking.recurrenceType
+          : null,
+        recurrenceEndDate: newBooking.isRecurring
+          ? newBooking.recurrenceEndDate
+          : null,
+        recurrenceDays: newBooking.isRecurring ? newBooking.recurrenceDays : [],
       };
 
       await addDoc(bookingsRef, bookingData);
@@ -178,7 +212,7 @@ const AdminDashboard = () => {
         name: "",
         purpose: "",
         isRecurring: false,
-        recurrenceType: null,
+        recurrenceType: "weekly",
         recurrenceEndDate: "",
         recurrenceDays: [],
       });
@@ -204,10 +238,16 @@ const AdminDashboard = () => {
         startTime: editingBooking.startTime,
         endTime: editingBooking.endTime,
         purpose: editingBooking.purpose,
-        isRecurring: editingBooking.isRecurring || false,
-        recurrenceType: editingBooking.recurrenceType || null,
-        recurrenceEndDate: editingBooking.recurrenceEndDate || null,
-        recurrenceDays: editingBooking.recurrenceDays || [],
+        isRecurring: editingBooking.isRecurring,
+        recurrenceType: editingBooking.isRecurring
+          ? editingBooking.recurrenceType
+          : null,
+        recurrenceEndDate: editingBooking.isRecurring
+          ? editingBooking.recurrenceEndDate
+          : null,
+        recurrenceDays: editingBooking.isRecurring
+          ? editingBooking.recurrenceDays
+          : [],
       });
 
       setEditingBooking(null);
@@ -235,6 +275,7 @@ const AdminDashboard = () => {
     setEditingBooking({
       ...booking,
       date: new Date(booking.date).toISOString().split("T")[0],
+      recurrenceDays: booking.recurrenceDays || [],
     });
   };
 
@@ -359,82 +400,156 @@ const AdminDashboard = () => {
                 <Card.Header className="card-header">Edit Booking</Card.Header>
                 <Card.Body>
                   <Form className="booking-form">
-                    <div className="form-row">
-                      <Form.Select
-                        name="room"
-                        value={editingBooking.room}
+                    <Row>
+                      <Col md={6}>
+                        <Form.Select
+                          name="room"
+                          value={editingBooking.room}
+                          onChange={handleEditInputChange}
+                          className="mb-3"
+                          disabled
+                        >
+                          <option value="">Select a room</option>
+                          {rooms.map((room) => (
+                            <option key={room.id} value={room.name}>
+                              {room.name}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Control
+                          name="date"
+                          placeholder="Date"
+                          type="date"
+                          value={editingBooking.date}
+                          onChange={handleEditInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Control
+                          name="startTime"
+                          placeholder="Start Time"
+                          type="time"
+                          value={editingBooking.startTime}
+                          onChange={handleEditInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                      <Col md={6}>
+                        <Form.Control
+                          name="endTime"
+                          placeholder="End Time"
+                          type="time"
+                          value={editingBooking.endTime}
+                          onChange={handleEditInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Control
+                          name="purpose"
+                          placeholder="Purpose"
+                          type="text"
+                          value={editingBooking.purpose}
+                          onChange={handleEditInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                      <Col md={6}>
+                        <Form.Control
+                          name="name"
+                          placeholder="Name"
+                          value={editingBooking.name}
+                          onChange={handleEditInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                    </Row>
+                    <Form.Group className="mb-3">
+                      <Form.Check
+                        type="checkbox"
+                        id="edit-recurring-meeting"
+                        label="Recurring Meeting"
+                        name="isRecurring"
+                        checked={editingBooking.isRecurring}
                         onChange={handleEditInputChange}
-                        className="mb-3"
-                        disabled
+                      />
+                    </Form.Group>
+                    {editingBooking.isRecurring && (
+                      <>
+                        <Row>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Recurrence Type</Form.Label>
+                              <Form.Select
+                                name="recurrenceType"
+                                value={editingBooking.recurrenceType}
+                                onChange={handleEditInputChange}
+                              >
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                              </Form.Select>
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>End Date</Form.Label>
+                              <Form.Control
+                                name="recurrenceEndDate"
+                                type="date"
+                                value={editingBooking.recurrenceEndDate}
+                                onChange={handleEditInputChange}
+                                className="mb-3"
+                              />
+                            </Form.Group>
+                          </Col>
+                        </Row>
+                        {editingBooking.recurrenceType === "weekly" && (
+                          <Form.Group className="mb-3">
+                            <Form.Label>Repeat On</Form.Label>
+                            <div className="day-selector">
+                              {weekDays.map((day) => (
+                                <Form.Check
+                                  key={day.id}
+                                  type="checkbox"
+                                  id={`edit-day-${day.id}`}
+                                  label={day.name}
+                                  name="recurrenceDays"
+                                  value={day.id}
+                                  checked={editingBooking.recurrenceDays.includes(
+                                    day.id
+                                  )}
+                                  onChange={handleEditInputChange}
+                                  inline
+                                />
+                              ))}
+                            </div>
+                          </Form.Group>
+                        )}
+                      </>
+                    )}
+                    <div>
+                      <Button
+                        variant="success"
+                        onClick={updateBooking}
+                        className="action-button me-2"
                       >
-                        <option value="">Select a room</option>
-                        {rooms.map((room) => (
-                          <option key={room.id} value={room.name}>
-                            {room.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      <Form.Control
-                        name="date"
-                        placeholder="Date"
-                        type="date"
-                        value={editingBooking.date}
-                        onChange={handleEditInputChange}
-                        className="mb-3"
-                      />
-                    </div>
-                    <div className="form-row">
-                      <Form.Control
-                        name="startTime"
-                        placeholder="Start Time"
-                        type="time"
-                        value={editingBooking.startTime}
-                        onChange={handleEditInputChange}
-                        className="mb-3"
-                      />
-                      <Form.Control
-                        name="endTime"
-                        placeholder="End Time"
-                        type="time"
-                        value={editingBooking.endTime}
-                        onChange={handleEditInputChange}
-                        className="mb-3"
-                      />
-                    </div>
-                    <div className="form-row">
-                      <Form.Control
-                        name="purpose"
-                        placeholder="Purpose"
-                        type="text"
-                        value={editingBooking.purpose}
-                        onChange={handleEditInputChange}
-                        className="mb-3"
-                      />
-                    </div>
-                    <div className="form-row">
-                      <Form.Control
-                        name="name"
-                        placeholder="Name"
-                        value={editingBooking.name}
-                        onChange={handleEditInputChange}
-                        className="mb-3"
-                      />
-                      <div>
-                        <Button
-                          variant="success"
-                          onClick={updateBooking}
-                          className="action-button me-2"
-                        >
-                          Save Changes
-                        </Button>
-                        <Button
-                          variant="outline-secondary"
-                          onClick={cancelEditing}
-                          className="action-button"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
+                        Save Changes
+                      </Button>
+                      <Button
+                        variant="outline-secondary"
+                        onClick={cancelEditing}
+                        className="action-button"
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   </Form>
                 </Card.Body>
@@ -446,64 +561,140 @@ const AdminDashboard = () => {
                 </Card.Header>
                 <Card.Body>
                   <Form className="booking-form">
-                    <div className="form-row">
-                      <Form.Select
-                        name="room"
-                        value={newBooking.room}
+                    <Row>
+                      <Col md={6}>
+                        <Form.Select
+                          name="room"
+                          value={newBooking.room}
+                          onChange={handleInputChange}
+                          className="mb-3"
+                        >
+                          <option value="">Select a room</option>
+                          {rooms.map((room) => (
+                            <option key={room.id} value={room.name}>
+                              {room.name}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Control
+                          name="date"
+                          placeholder="Date"
+                          type="date"
+                          value={newBooking.date}
+                          onChange={handleInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Control
+                          name="startTime"
+                          placeholder="Start Time"
+                          type="time"
+                          value={newBooking.startTime}
+                          onChange={handleInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                      <Col md={6}>
+                        <Form.Control
+                          name="endTime"
+                          placeholder="End Time"
+                          type="time"
+                          value={newBooking.endTime}
+                          onChange={handleInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                    </Row>
+                    <Row>
+                      <Col md={6}>
+                        <Form.Control
+                          name="purpose"
+                          placeholder="Purpose"
+                          type="text"
+                          value={newBooking.purpose}
+                          onChange={handleInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                      <Col md={6}>
+                        <Form.Control
+                          name="name"
+                          placeholder="Name"
+                          value={newBooking.name}
+                          onChange={handleInputChange}
+                          className="mb-3"
+                        />
+                      </Col>
+                    </Row>
+                    <Form.Group className="mb-3">
+                      <Form.Check
+                        type="checkbox"
+                        id="new-recurring-meeting"
+                        label="Recurring Meeting"
+                        name="isRecurring"
+                        checked={newBooking.isRecurring}
                         onChange={handleInputChange}
-                        className="mb-3"
-                      >
-                        <option value="">Select a room</option>
-                        {rooms.map((room) => (
-                          <option key={room.id} value={room.name}>
-                            {room.name}
-                          </option>
-                        ))}
-                      </Form.Select>
-                      <Form.Control
-                        name="date"
-                        placeholder="Date"
-                        type="date"
-                        value={newBooking.date}
-                        onChange={handleInputChange}
-                        className="mb-3"
                       />
-                    </div>
-                    <div className="form-row">
-                      <Form.Control
-                        name="startTime"
-                        placeholder="Start Time"
-                        type="time"
-                        value={newBooking.startTime}
-                        onChange={handleInputChange}
-                        className="mb-3"
-                      />
-                      <Form.Control
-                        name="endTime"
-                        placeholder="End Time"
-                        type="time"
-                        value={newBooking.endTime}
-                        onChange={handleInputChange}
-                        className="mb-3"
-                      />
-                    </div>
-                    <div className="form-row">
-                      <Form.Control
-                        name="purpose"
-                        placeholder="Purpose"
-                        type="text"
-                        value={newBooking.purpose}
-                        onChange={handleInputChange}
-                        className="mb-3"
-                      />
-                    </div>
-                    <Form.Control
-                      name="name"
-                      placeholder="Name"
-                      value={newBooking.name}
-                      onChange={handleInputChange}
-                      className="mb-3"
-                    />
+                    </Form.Group>
+                    {newBooking.isRecurring && (
+                      <>
+                        <Row>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Recurrence Type</Form.Label>
+                              <Form.Select
+                                name="recurrenceType"
+                                value={newBooking.recurrenceType}
+                                onChange={handleInputChange}
+                              >
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                              </Form.Select>
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>End Date</Form.Label>
+                              <Form.Control
+                                name="recurrenceEndDate"
+                                type="date"
+                                value={newBooking.recurrenceEndDate}
+                                onChange={handleInputChange}
+                                className="mb-3"
+                              />
+                            </Form.Group>
+                          </Col>
+                        </Row>
+                        {newBooking.recurrenceType === "weekly" && (
+                          <Form.Group className="mb-3">
+                            <Form.Label>Repeat On</Form.Label>
+                            <div className="day-selector">
+                              {weekDays.map((day) => (
+                                <Form.Check
+                                  key={day.id}
+                                  type="checkbox"
+                                  id={`new-day-${day.id}`}
+                                  label={day.name}
+                                  name="recurrenceDays"
+                                  value={day.id}
+                                  checked={newBooking.recurrenceDays.includes(
+                                    day.id
+                                  )}
+                                  onChange={handleInputChange}
+                                  inline
+                                />
+                              ))}
+                            </div>
+                          </Form.Group>
+                        )}
+                      </>
+                    )}
                     <Button
                       variant="primary"
                       onClick={createBooking}
