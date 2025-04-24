@@ -23,7 +23,7 @@ const AuthGuard = ({ children }) => {
       if (!allowedEmails.includes(email)) {
         await signOut(auth);
         setError(
-          "Access denied. Only authorized staff can access this dashboard."
+          "Access denied. Only authorized staff can access this application."
         );
         return;
       }
@@ -53,7 +53,7 @@ const AuthGuard = ({ children }) => {
         } else {
           signOut(auth);
           setError(
-            "Access denied. Only authorized staff can access this dashboard."
+            "Access denied. Only authorized staff can access this application."
           );
         }
       } else {
