@@ -83,7 +83,7 @@ const AuthGuard = ({ children }) => {
 
   return (
     <>
-      <Container className="d-flex justify-content-end p-3">
+      <Container className="d-flex justify-content-end py-0">
         <Button variant="outline-secondary" onClick={handleLogout}>
           Logout ({user.email})
         </Button>
