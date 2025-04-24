@@ -8,7 +8,7 @@ import CalendarView from "./components/CalendarView";
 import BookingList from "./components/BookingList";
 import AdminDashboard from "./components/AdminDashboard";
 import "./App.css";
-import AuthGuard from "./components/AuthGuard";
+import AuthGuardMember from "./components/AuthGuardMember";
 
 function App() {
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -22,7 +22,7 @@ function App() {
           <Route
             path="/"
             element={
-              <AuthGuard>
+              <AuthGuardMember>
                 <Container className="py-4">
                   <div className="booking-container">
                     <div className="room-selection-section">
@@ -55,7 +55,7 @@ function App() {
                     )}
                   </div>
                 </Container>
-              </AuthGuard>
+              </AuthGuardMember>
             }
           />
           <Route path="/admin" element={<AdminDashboard />} />
