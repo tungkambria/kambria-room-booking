@@ -29,25 +29,18 @@ const subscribeToSendy = async (email, name) => {
   }
 
   try {
-    const response = await fetch("/netlify/functions/proxy", {
+    const response = await fetch(`${sendyUrl}/subscribe`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
-        url: `${sendyUrl}/subscribe`,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: {
-          api_key: apiKey,
-          list: listId,
-          email: email,
-          name: name || "",
-          boolean: "true",
-        },
-      }),
+      body: new URLSearchParams({
+        api_key: apiKey,
+        list: listId,
+        email: email,
+        name: name || "",
+        boolean: "true",
+      }).toString(),
     });
 
     const result = await response.json();
@@ -76,29 +69,23 @@ const sendEmailWithSendy = async (email, subject, htmlContent) => {
   }
 
   try {
-    const response = await fetch("/netlify/functions/proxy", {
+    // Create a campaign to send the email
+    const response = await fetch(`${sendyUrl}/api/campaigns/create.php`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
-        url: `${sendyUrl}/api/campaigns/create.php`,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: {
-          api_key: apiKey,
-          email: email,
-          from_name: "Room Booking System",
-          from_email: "no-reply@kambria.io",
-          reply_to: "no-reply@kambria.io",
-          subject: subject,
-          html_text: htmlContent,
-          brand_id: "1",
-          send_campaign: "1",
-        },
-      }),
+      body: new URLSearchParams({
+        api_key: apiKey,
+        email: email,
+        from_name: "Room Booking System",
+        from_email: "no-reply@kambria.io", // Replace with your sender email
+        reply_to: "no-reply@kambria.io",
+        subject: subject,
+        html_text: htmlContent,
+        brand_id: "1", // Replace with your brand ID
+        send_campaign: "1", // Send immediately
+      }).toString(),
     });
 
     const result = await response.json();
