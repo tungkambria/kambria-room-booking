@@ -113,24 +113,57 @@ const AdminDashboard = () => {
       return;
     }
     try {
+      // Update room name in rooms collection
       await updateDoc(doc(db, "rooms", id), { name: editedRoomName.trim() });
+
+      // Get all bookings for the room
+      const bookingsRef = collection(db, "rooms", id, "bookings");
+      const bookingsSnapshot = await getDocs(bookingsRef);
+
+      // Update room name in each booking
+      const updatePromises = bookingsSnapshot.docs.map(async (bookingDoc) => {
+        await updateDoc(doc(db, "rooms", id, "bookings", bookingDoc.id), {
+          room: editedRoomName.trim(),
+        });
+      });
+
+      // Wait for all booking updates to complete
+      await Promise.all(updatePromises);
+
+      // Refresh data
+      await Promise.all([fetchRooms(), fetchBookings()]);
+
       setEditingRoomId(null);
-      fetchRooms();
-      showNotification("Room updated successfully");
+      showNotification("Room and associated bookings updated successfully");
     } catch (error) {
-      showNotification("Error updating room", "danger");
-      console.error("Error updating room:", error);
+      showNotification("Error updating room and bookings", "danger");
+      console.error("Error updating room and bookings:", error);
     }
   };
 
   const deleteRoom = async (id) => {
     try {
+      // Get all bookings for the room
+      const bookingsRef = collection(db, "rooms", id, "bookings");
+      const bookingsSnapshot = await getDocs(bookingsRef);
+
+      // Delete each booking
+      const deletePromises = bookingsSnapshot.docs.map(async (bookingDoc) => {
+        await deleteDoc(doc(db, "rooms", id, "bookings", bookingDoc.id));
+      });
+
+      // Wait for all bookings to be deleted
+      await Promise.all(deletePromises);
+
+      // Delete the room
       await deleteDoc(doc(db, "rooms", id));
-      fetchRooms();
-      showNotification("Room deleted successfully");
+
+      // Refresh rooms and bookings
+      await Promise.all([fetchRooms(), fetchBookings()]);
+      showNotification("Room and all associated bookings deleted successfully");
     } catch (error) {
-      showNotification("Error deleting room", "danger");
-      console.error("Error deleting room:", error);
+      showNotification("Error deleting room and bookings", "danger");
+      console.error("Error deleting room and bookings:", error);
     }
   };
 
