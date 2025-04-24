@@ -17,12 +17,12 @@ import {
   weekDays,
 } from "../utils";
 
+const sendyUrl = process.env.REACT_APP_SENDY_URL;
+const apiKey = process.env.REACT_APP_SENDY_API_KEY;
+const listId = process.env.REACT_APP_SENDY_LIST_ID;
+
 // Utility function to subscribe an email to Sendy list
 const subscribeToSendy = async (email, name) => {
-  const sendyUrl = process.env.REACT_APP_SENDY_URL;
-  const apiKey = process.env.REACT_APP_SENDY_API_KEY;
-  const listId = process.env.REACT_APP_SENDY_LIST_ID;
-
   if (!sendyUrl || !apiKey || !listId) {
     console.error("Sendy configuration is missing");
     return false;
@@ -57,19 +57,27 @@ const subscribeToSendy = async (email, name) => {
   }
 };
 
-// Utility function to send emails using Sendy
-const sendEmailWithSendy = async (email, subject, htmlContent) => {
-  const sendyUrl = process.env.REACT_APP_SENDY_URL;
-  const apiKey = process.env.REACT_APP_SENDY_API_KEY;
-  const listId = process.env.REACT_APP_SENDY_LIST_ID;
-
+// Utility function to send an email to a single email using Sendy
+const sendEmailToSingleEmail = async (
+  email,
+  subject,
+  htmlContent,
+  name = ""
+) => {
   if (!sendyUrl || !apiKey || !listId) {
     console.error("Sendy configuration is missing");
     return false;
   }
 
   try {
-    // Create a campaign to send the email
+    // Step 1: Subscribe the email to the Sendy list
+    const subscribed = await subscribeToSendy(email, name);
+    if (!subscribed) {
+      console.error(`Failed to subscribe ${email} to Sendy list`);
+      return false;
+    }
+
+    // Step 2: Create and send a campaign to the list
     const response = await fetch(`${sendyUrl}/api/campaigns/create.php`, {
       method: "POST",
       headers: {
@@ -91,6 +99,31 @@ const sendEmailWithSendy = async (email, subject, htmlContent) => {
     const result = await response.json();
     if (result.success) {
       console.log(`Email sent successfully to ${email}`);
+
+      // Step 3 (Optional): Unsubscribe the email to keep the list clean
+      const unsubscribeResponse = await fetch(`${sendyUrl}/unsubscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          api_key: apiKey,
+          list: listId,
+          email: email,
+          boolean: "true",
+        }).toString(),
+      });
+
+      const unsubscribeResult = await unsubscribeResponse.json();
+      if (unsubscribeResult.success) {
+        console.log(`Unsubscribed ${email} from Sendy list`);
+      } else {
+        console.warn(
+          `Failed to unsubscribe ${email}:`,
+          unsubscribeResult.message
+        );
+      }
+
       return true;
     } else {
       console.error(`Failed to send email to ${email}:`, result.message);
@@ -314,7 +347,7 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     }
 
     // Send email to booker
-    const bookerSent = await sendEmailWithSendy(
+    const bookerSent = await sendEmailToSingleEmail(
       booking.email,
       bookerSubject,
       emailContent
@@ -331,7 +364,7 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       adminEmails.map(async (adminEmail) => {
         // Subscribe admin to Sendy list if not already subscribed
         await subscribeToSendy(adminEmail, "Admin");
-        return sendEmailWithSendy(adminEmail, adminSubject, emailContent);
+        return sendEmailToSingleEmail(adminEmail, adminSubject, emailContent);
       })
     );
 
