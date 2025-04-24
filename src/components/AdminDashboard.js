@@ -600,7 +600,7 @@ const AdminDashboard = () => {
                           name="room"
                           value={newBooking.room}
                           onChange={handleInputChange}
-                          className="mb-3"
+                          className="mb-3 form-control"
                         >
                           <option value="">Select a room</option>
                           {rooms.map((room) => (
@@ -684,6 +684,7 @@ const AdminDashboard = () => {
                                 name="recurrenceType"
                                 value={newBooking.recurrenceType}
                                 onChange={handleInputChange}
+                                className="form-control"
                               >
                                 <option value="daily">Daily</option>
                                 <option value="weekly">Weekly</option>

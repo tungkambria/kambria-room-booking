@@ -571,6 +571,7 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
                       <Form.Select
                         value={recurrenceType}
                         onChange={(e) => setRecurrenceType(e.target.value)}
+                        className="form-control"
                       >
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
