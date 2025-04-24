@@ -79,10 +79,11 @@ const sendEmailWithSendy = async (email, subject, htmlContent) => {
         api_key: apiKey,
         email: email,
         from_name: "KOLVN Room Booking System",
-        from_email: "no-reply@kambria.io", // Replace with your sender email
-        reply_to: "no-reply@kambria.io",
+        from_email: "noreply@kambria.io", // Replace with your sender email
+        reply_to: "noreply@kambria.io",
         subject: subject,
         html_text: htmlContent,
+        brand_id: "1", // Replace with your brand ID
         send_campaign: "1", // Send immediately
         list_ids: listId,
       }).toString(),
