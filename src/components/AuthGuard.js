@@ -5,7 +5,11 @@ import { Button, Alert, Container } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGoogle } from "@fortawesome/free-brands-svg-icons";
 
-const allowedEmails = ["liencao@kambria.io", "tungpham@kambria.io"];
+const allowedEmails = [
+  "liencao@kambria.io",
+  "tungpham@kambria.io",
+  "dung_le@ohmnilabs.com",
+];
 
 const AuthGuard = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -19,7 +23,7 @@ const AuthGuard = ({ children }) => {
       if (!allowedEmails.includes(email)) {
         await signOut(auth);
         setError(
-          "Access denied. Only authorized Kambria staff can access this dashboard."
+          "Access denied. Only authorized staff can access this dashboard."
         );
         return;
       }
@@ -49,7 +53,7 @@ const AuthGuard = ({ children }) => {
         } else {
           signOut(auth);
           setError(
-            "Access denied. Only authorized Kambria staff can access this dashboard."
+            "Access denied. Only authorized staff can access this dashboard."
           );
         }
       } else {
