@@ -31,6 +31,7 @@ const subscribeToSendy = async (email, name) => {
   try {
     const response = await fetch(`${sendyUrl}/subscribe`, {
       method: "POST",
+      mode: "no-cors",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -72,6 +73,7 @@ const sendEmailWithSendy = async (email, subject, htmlContent) => {
     // Create a campaign to send the email
     const response = await fetch(`${sendyUrl}/api/campaigns/create.php`, {
       method: "POST",
+      mode: "no-cors",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
