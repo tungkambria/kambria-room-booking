@@ -9,7 +9,6 @@ import {
   getDocs,
   doc,
 } from "firebase/firestore";
-import emailjs from "@emailjs/browser";
 import "./RoomBookingForm.css";
 import {
   formatDateGMT7,
@@ -18,37 +17,87 @@ import {
   weekDays,
 } from "../utils";
 
-// Initialize EmailJS with the public key
-const initializeEmailJS = () => {
-  const publicKey = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
-  console.log("Public Key:", publicKey); // Add this line
-  if (!publicKey) {
-    console.error("EmailJS public key is not defined in environment variables");
+// Utility function to subscribe an email to Sendy list
+const subscribeToSendy = async (email, name) => {
+  const sendyUrl = process.env.REACT_APP_SENDY_URL;
+  const apiKey = process.env.REACT_APP_SENDY_API_KEY;
+  const listId = process.env.REACT_APP_SENDY_LIST_ID;
+
+  if (!sendyUrl || !apiKey || !listId) {
+    console.error("Sendy configuration is missing");
     return false;
   }
+
   try {
-    emailjs.init(publicKey);
-    console.log("EmailJS initialized successfully");
-    return true;
+    const response = await fetch(`${sendyUrl}/api/subscribers/subscribe`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        api_key: apiKey,
+        list_id: listId,
+        email: email,
+        name: name || "",
+        boolean: "true",
+      }).toString(),
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      console.log(`Subscribed ${email} to Sendy list`);
+      return true;
+    } else {
+      console.error(`Failed to subscribe ${email}:`, result.message);
+      return false;
+    }
   } catch (error) {
-    console.error("Failed to initialize EmailJS:", error);
+    console.error(`Error subscribing ${email} to Sendy:`, error);
     return false;
   }
 };
 
-// Utility function to send emails using EmailJS
-const sendEmail = async (templateId, params) => {
-  const serviceId = process.env.REACT_APP_EMAILJS_SERVICE_ID;
-  if (!serviceId || !templateId) {
-    console.error("EmailJS service ID or template ID is missing");
+// Utility function to send emails using Sendy
+const sendEmailWithSendy = async (email, subject, htmlContent) => {
+  const sendyUrl = process.env.REACT_APP_SENDY_URL;
+  const apiKey = process.env.REACT_APP_SENDY_API_KEY;
+  const listId = process.env.REACT_APP_SENDY_LIST_ID;
+
+  if (!sendyUrl || !apiKey || !listId) {
+    console.error("Sendy configuration is missing");
     return false;
   }
+
   try {
-    const response = await emailjs.send(serviceId, templateId, params);
-    console.log(`Email sent successfully to ${params.to_email}`, response);
-    return true;
+    // Create a campaign to send the email
+    const response = await fetch(`${sendyUrl}/api/campaigns/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        api_key: apiKey,
+        from_name: "Room Booking System",
+        from_email: "no-reply@kambria.io", // Replace with your sender email
+        reply_to: "no-reply@kambria.io",
+        subject: subject,
+        html_text: htmlContent,
+        list_ids: listId,
+        send_campaign: "1", // Send immediately
+        query_string: `email=${encodeURIComponent(email)}`, // Target specific email
+      }).toString(),
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      console.log(`Email sent successfully to ${email}`);
+      return true;
+    } else {
+      console.error(`Failed to send email to ${email}:`, result.message);
+      return false;
+    }
   } catch (error) {
-    console.error(`Error sending email to ${params.to_email}:`, error);
+    console.error(`Error sending email to ${email}:`, error);
     return false;
   }
 };
@@ -94,14 +143,6 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
   // State for confirmation modal
   const [showICSModal, setShowICSModal] = useState(false);
   const [pendingBooking, setPendingBooking] = useState(null);
-
-  // Initialize EmailJS on component mount
-  useState(() => {
-    const isInitialized = initializeEmailJS();
-    if (!isInitialized) {
-      setError("Email service initialization failed. Please contact support.");
-    }
-  }, []);
 
   const handleRecurrenceDayChange = (dayId) => {
     setRecurrenceDays((prev) =>
@@ -249,25 +290,37 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
   };
 
   const sendBookingEmails = async (booking) => {
-    const emailParams = {
-      room_name: booking.room.name,
-      booking_date: booking.date,
-      start_time: booking.startTime,
-      end_time: booking.endTime,
-      purpose: booking.purpose,
-      booker_name: booking.name,
-      booker_email: booking.email,
-    };
+    const bookerSubject = `Booking Confirmation for ${booking.room.name}`;
+    const adminSubject = `New Booking for ${booking.room.name}`;
+    const emailContent = `
+      <h2>Booking Details</h2>
+      <p><strong>Room:</strong> ${booking.room.name}</p>
+      <p><strong>Date:</strong> ${booking.date}</p>
+      <p><strong>Time:</strong> ${booking.startTime} - ${booking.endTime}</p>
+      <p><strong>Purpose:</strong> ${booking.purpose}</p>
+      <p><strong>Booked by:</strong> ${booking.name} (${booking.email})</p>
+    `;
+
+    // Subscribe booker to Sendy list
+    const bookerSubscribed = await subscribeToSendy(
+      booking.email,
+      booking.name
+    );
+    if (!bookerSubscribed) {
+      console.warn("Failed to subscribe booker to Sendy list");
+      setError(
+        "Booking successful, but failed to subscribe your email for notifications."
+      );
+    }
 
     // Send email to booker
-    const bookerTemplateId = process.env.REACT_APP_EMAILJS_BOOKER_TEMPLATE_ID;
-    const bookerSent = await sendEmail(bookerTemplateId, {
-      ...emailParams,
-      to_email: booking.email,
-    });
+    const bookerSent = await sendEmailWithSendy(
+      booking.email,
+      bookerSubject,
+      emailContent
+    );
 
     // Send emails to admins
-    const adminTemplateId = process.env.REACT_APP_EMAILJS_ADMIN_TEMPLATE_ID;
     const adminEmails = [
       "liencao@kambria.io",
       "tungpham@kambria.io",
@@ -275,12 +328,11 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     ];
 
     const adminResults = await Promise.all(
-      adminEmails.map((adminEmail) =>
-        sendEmail(adminTemplateId, {
-          ...emailParams,
-          to_email: adminEmail.trim(),
-        })
-      )
+      adminEmails.map(async (adminEmail) => {
+        // Subscribe admin to Sendy list if not already subscribed
+        await subscribeToSendy(adminEmail, "Admin");
+        return sendEmailWithSendy(adminEmail, adminSubject, emailContent);
+      })
     );
 
     // Log results and provide user feedback
