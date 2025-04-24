@@ -77,7 +77,6 @@ const sendEmailWithSendy = async (email, subject, htmlContent) => {
       },
       body: new URLSearchParams({
         api_key: apiKey,
-        email: email,
         from_name: "KOLVN Room Booking System",
         from_email: "noreply@kambria.io", // Replace with your sender email
         reply_to: "noreply@kambria.io",
