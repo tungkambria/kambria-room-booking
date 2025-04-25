@@ -117,7 +117,6 @@ const sendEmailToSingleEmail = async (
     if (contentType && contentType.includes("application/json")) {
       result = await response.json();
     } else {
-      // Handle plain text response
       const text = await response.text();
       result = { success: text.includes("Campaign created and now sending") };
     }
@@ -142,28 +141,42 @@ const sendEmailToSingleEmail = async (
       const unsubscribeContentType =
         unsubscribeResponse.headers.get("content-type");
       let unsubscribeResult;
+      let rawResponseText = "";
 
-      if (
-        unsubscribeContentType &&
-        unsubscribeContentType.includes("application/json")
-      ) {
-        unsubscribeResult = await unsubscribeResponse.json();
-      } else {
-        const unsubscribeText = await unsubscribeResponse.text();
+      try {
+        if (
+          unsubscribeContentType &&
+          unsubscribeContentType.includes("application/json")
+        ) {
+          unsubscribeResult = await unsubscribeResponse.json();
+        } else {
+          rawResponseText = await unsubscribeResponse.text();
+          unsubscribeResult = {
+            success:
+              rawResponseText.includes("true") ||
+              rawResponseText.includes("Unsubscribed") ||
+              rawResponseText.includes("Email address not found"), // Handle case where email isn't subscribed
+          };
+        }
+      } catch (err) {
+        console.error(`Error parsing unsubscribe response for ${email}:`, err, {
+          rawResponseText,
+        });
         unsubscribeResult = {
-          success:
-            unsubscribeText.includes("true") ||
-            unsubscribeText.includes("Unsubscribed"),
+          success: false,
+          message: "Failed to parse response",
         };
       }
 
       if (unsubscribeResult.success) {
         console.log(`Unsubscribed ${email} from Sendy list`);
       } else {
-        console.warn(
-          `Failed to unsubscribe ${email}:`,
-          unsubscribeResult.message || "Unknown error"
-        );
+        console.warn(`Failed to unsubscribe ${email}:`, {
+          message: unsubscribeResult.message || "Unknown error",
+          rawResponse: rawResponseText || "No response text",
+          status: unsubscribeResponse.status,
+          statusText: unsubscribeResponse.statusText,
+        });
       }
 
       return true;
