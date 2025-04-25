@@ -39,19 +39,54 @@ const subscribeToSendy = async (email, name) => {
         list: listId,
         email: email,
         name: name || "",
+        boolean: "true",
       }).toString(),
     });
 
-    const result = await response.json();
-    if (result.success) {
+    const text = await response.text();
+    if (text.includes("true") || text.includes("Already subscribed.")) {
       console.log(`Subscribed ${email} to Sendy list`);
       return true;
     } else {
-      console.error(`Failed to subscribe ${email}:`, result.message);
+      console.error(`Failed to subscribe ${email}: ${text}`);
       return false;
     }
   } catch (error) {
     console.error(`Error subscribing ${email} to Sendy:`, error);
+    return false;
+  }
+};
+
+// Utility function to delete a subscriber from Sendy list
+const deleteFromSendy = async (email) => {
+  if (!sendyUrl || !apiKey || !listId) {
+    console.error("Sendy configuration is missing");
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${sendyUrl}/api/subscribers/delete.php`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        api_key: apiKey,
+        list_id: listId,
+        email: email,
+      }).toString(),
+    });
+
+    const text = await response.text();
+    if (text.includes("true")) {
+      console.log(`Unsubscribed ${email} from Sendy list`);
+      return true;
+    } else {
+      console.warn(`Failed to unsubscribe ${email}: ${text}`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error unsubscribing ${email} from Sendy:`, error);
     return false;
   }
 };
@@ -77,7 +112,7 @@ const sendEmailToSingleEmail = async (
     }
 
     // Step 2: Create and send a campaign to the list
-    const response = await fetch(`${sendyUrl}/api/campaigns/create.php`, {
+    const response = await fetch(`${sendyUrl}/api/campaigns/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -85,45 +120,25 @@ const sendEmailToSingleEmail = async (
       body: new URLSearchParams({
         api_key: apiKey,
         from_name: "KOLVN Room Booking System",
-        from_email: "noreply@kambria.io", // Replace with your sender email
+        from_email: "noreply@kambria.io",
         reply_to: "noreply@kambria.io",
         subject: subject,
-        html_text: htmlContent,
-        brand_id: "1", // Replace with your brand ID
-        send_campaign: "1", // Send immediately
+        html: htmlContent,
         list_ids: listId,
+        brand_id: "1",
+        send_campaign: "1",
       }).toString(),
     });
 
-    const result = await response.json();
-    if (result.success) {
+    const text = await response.text();
+    if (text.includes("Campaign created and now sending")) {
       console.log(`Email sent successfully to ${email}`);
 
-      // Step 3 (Optional): Unsubscribe the email to keep the list clean
-      const unsubscribeResponse = await fetch(`${sendyUrl}/unsubscribe`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          list: listId,
-          email: email,
-        }).toString(),
-      });
-
-      const unsubscribeResult = await unsubscribeResponse.json();
-      if (unsubscribeResult.success) {
-        console.log(`Unsubscribed ${email} from Sendy list`);
-      } else {
-        console.warn(
-          `Failed to unsubscribe ${email}:`,
-          unsubscribeResult.message
-        );
-      }
-
+      // Step 3: Delete the subscriber to keep the list clean
+      await deleteFromSendy(email);
       return true;
     } else {
-      console.error(`Failed to send email to ${email}:`, result.message);
+      console.error(`Failed to send email to ${email}: ${text}`);
       return false;
     }
   } catch (error) {
@@ -331,23 +346,12 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
       <p><strong>Booked by:</strong> ${booking.name} (${booking.email})</p>
     `;
 
-    // Subscribe booker to Sendy list
-    const bookerSubscribed = await subscribeToSendy(
-      booking.email,
-      booking.name
-    );
-    if (!bookerSubscribed) {
-      console.warn("Failed to subscribe booker to Sendy list");
-      setError(
-        "Booking successful, but failed to subscribe your email for notifications."
-      );
-    }
-
     // Send email to booker
     const bookerSent = await sendEmailToSingleEmail(
       booking.email,
       bookerSubject,
-      emailContent
+      emailContent,
+      booking.name
     );
 
     // Send emails to admins
@@ -360,8 +364,12 @@ const RoomBookingForm = ({ selectedRoom, setBookings }) => {
     const adminResults = await Promise.all(
       adminEmails.map(async (adminEmail) => {
         // Subscribe admin to Sendy list if not already subscribed
-        await subscribeToSendy(adminEmail, "Admin");
-        return sendEmailToSingleEmail(adminEmail, adminSubject, emailContent);
+        return sendEmailToSingleEmail(
+          adminEmail,
+          adminSubject,
+          emailContent,
+          "Admin"
+        );
       })
     );
 
