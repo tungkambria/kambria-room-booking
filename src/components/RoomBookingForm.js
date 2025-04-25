@@ -39,31 +39,15 @@ const subscribeToSendy = async (email, name) => {
         list: listId,
         email: email,
         name: name || "",
-        boolean: "true",
       }).toString(),
     });
 
-    const contentType = response.headers.get("content-type");
-    let result;
-
-    if (contentType && contentType.includes("application/json")) {
-      result = await response.json();
-    } else {
-      // Handle plain text response
-      const text = await response.text();
-      result = {
-        success: text.includes("true") || text.includes("Already subscribed."),
-      };
-    }
-
+    const result = await response.json();
     if (result.success) {
       console.log(`Subscribed ${email} to Sendy list`);
       return true;
     } else {
-      console.error(
-        `Failed to subscribe ${email}:`,
-        result.message || "Unknown error"
-      );
+      console.error(`Failed to subscribe ${email}:`, result.message);
       return false;
     }
   } catch (error) {
@@ -101,26 +85,17 @@ const sendEmailToSingleEmail = async (
       body: new URLSearchParams({
         api_key: apiKey,
         from_name: "KOLVN Room Booking System",
-        from_email: "noreply@kambria.io",
+        from_email: "noreply@kambria.io", // Replace with your sender email
         reply_to: "noreply@kambria.io",
         subject: subject,
         html_text: htmlContent,
-        brand_id: "1",
-        send_campaign: "1",
+        brand_id: "1", // Replace with your brand ID
+        send_campaign: "1", // Send immediately
         list_ids: listId,
       }).toString(),
     });
 
-    const contentType = response.headers.get("content-type");
-    let result;
-
-    if (contentType && contentType.includes("application/json")) {
-      result = await response.json();
-    } else {
-      const text = await response.text();
-      result = { success: text.includes("Campaign created and now sending") };
-    }
-
+    const result = await response.json();
     if (result.success) {
       console.log(`Email sent successfully to ${email}`);
 
@@ -134,57 +109,22 @@ const sendEmailToSingleEmail = async (
           api_key: apiKey,
           list: listId,
           email: email,
-          boolean: "true",
         }).toString(),
       });
 
-      const unsubscribeContentType =
-        unsubscribeResponse.headers.get("content-type");
-      let unsubscribeResult;
-      let rawResponseText = "";
-
-      try {
-        if (
-          unsubscribeContentType &&
-          unsubscribeContentType.includes("application/json")
-        ) {
-          unsubscribeResult = await unsubscribeResponse.json();
-        } else {
-          rawResponseText = await unsubscribeResponse.text();
-          unsubscribeResult = {
-            success:
-              rawResponseText.includes("true") ||
-              rawResponseText.includes("Unsubscribed") ||
-              rawResponseText.includes("Email address not found"), // Handle case where email isn't subscribed
-          };
-        }
-      } catch (err) {
-        console.error(`Error parsing unsubscribe response for ${email}:`, err, {
-          rawResponseText,
-        });
-        unsubscribeResult = {
-          success: false,
-          message: "Failed to parse response",
-        };
-      }
-
+      const unsubscribeResult = await unsubscribeResponse.json();
       if (unsubscribeResult.success) {
         console.log(`Unsubscribed ${email} from Sendy list`);
       } else {
-        console.warn(`Failed to unsubscribe ${email}:`, {
-          message: unsubscribeResult.message || "Unknown error",
-          rawResponse: rawResponseText || "No response text",
-          status: unsubscribeResponse.status,
-          statusText: unsubscribeResponse.statusText,
-        });
+        console.warn(
+          `Failed to unsubscribe ${email}:`,
+          unsubscribeResult.message
+        );
       }
 
       return true;
     } else {
-      console.error(
-        `Failed to send email to ${email}:`,
-        result.message || "Unknown error"
-      );
+      console.error(`Failed to send email to ${email}:`, result.message);
       return false;
     }
   } catch (error) {
