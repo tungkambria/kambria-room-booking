@@ -112,7 +112,7 @@ const sendEmailToSingleEmail = async (
     }
 
     // Step 2: Create and send a campaign to the list
-    const response = await fetch(`${sendyUrl}/api/campaigns/create`, {
+    const response = await fetch(`${sendyUrl}/api/campaigns/create.php`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
