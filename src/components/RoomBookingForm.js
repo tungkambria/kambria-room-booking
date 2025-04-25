@@ -78,7 +78,7 @@ const deleteFromSendy = async (email) => {
     });
 
     const text = await response.text();
-    if (text.includes("true")) {
+    if (text.includes("1")) {
       console.log(`Unsubscribed ${email} from Sendy list`);
       return true;
     } else {
