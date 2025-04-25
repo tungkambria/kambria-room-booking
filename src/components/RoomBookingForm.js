@@ -44,7 +44,7 @@ const subscribeToSendy = async (email, name) => {
     });
 
     const text = await response.text();
-    if (text.includes("true") || text.includes("Already subscribed.")) {
+    if (text.includes("1") || text.includes("Already subscribed.")) {
       console.log(`Subscribed ${email} to Sendy list`);
       return true;
     } else {
