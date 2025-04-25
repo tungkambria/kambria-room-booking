@@ -119,11 +119,12 @@ const sendEmailToSingleEmail = async (
       },
       body: new URLSearchParams({
         api_key: apiKey,
+        title: "KOLVN Room Booking System",
         from_name: "KOLVN Room Booking System",
         from_email: "noreply@kambria.io",
         reply_to: "noreply@kambria.io",
         subject: subject,
-        html: htmlContent,
+        html_text: htmlContent,
         list_ids: listId,
         brand_id: "1",
         send_campaign: "1",
