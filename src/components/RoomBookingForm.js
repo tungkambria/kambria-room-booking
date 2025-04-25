@@ -101,17 +101,27 @@ const sendEmailToSingleEmail = async (
       body: new URLSearchParams({
         api_key: apiKey,
         from_name: "KOLVN Room Booking System",
-        from_email: "noreply@kambria.io", // Replace with your sender email
+        from_email: "noreply@kambria.io",
         reply_to: "noreply@kambria.io",
         subject: subject,
         html_text: htmlContent,
-        brand_id: "1", // Replace with your brand ID
-        send_campaign: "1", // Send immediately
+        brand_id: "1",
+        send_campaign: "1",
         list_ids: listId,
       }).toString(),
     });
 
-    const result = await response.json();
+    const contentType = response.headers.get("content-type");
+    let result;
+
+    if (contentType && contentType.includes("application/json")) {
+      result = await response.json();
+    } else {
+      // Handle plain text response
+      const text = await response.text();
+      result = { success: text.includes("Campaign created and now sending") };
+    }
+
     if (result.success) {
       console.log(`Email sent successfully to ${email}`);
 
@@ -129,19 +139,39 @@ const sendEmailToSingleEmail = async (
         }).toString(),
       });
 
-      const unsubscribeResult = await unsubscribeResponse.json();
+      const unsubscribeContentType =
+        unsubscribeResponse.headers.get("content-type");
+      let unsubscribeResult;
+
+      if (
+        unsubscribeContentType &&
+        unsubscribeContentType.includes("application/json")
+      ) {
+        unsubscribeResult = await unsubscribeResponse.json();
+      } else {
+        const unsubscribeText = await unsubscribeResponse.text();
+        unsubscribeResult = {
+          success:
+            unsubscribeText.includes("true") ||
+            unsubscribeText.includes("Unsubscribed"),
+        };
+      }
+
       if (unsubscribeResult.success) {
         console.log(`Unsubscribed ${email} from Sendy list`);
       } else {
         console.warn(
           `Failed to unsubscribe ${email}:`,
-          unsubscribeResult.message
+          unsubscribeResult.message || "Unknown error"
         );
       }
 
       return true;
     } else {
-      console.error(`Failed to send email to ${email}:`, result.message);
+      console.error(
+        `Failed to send email to ${email}:`,
+        result.message || "Unknown error"
+      );
       return false;
     }
   } catch (error) {
