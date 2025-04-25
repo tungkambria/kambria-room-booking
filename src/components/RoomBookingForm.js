@@ -106,7 +106,6 @@ const sendEmailToSingleEmail = async (
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          api_key: apiKey,
           list: listId,
           email: email,
         }).toString(),
