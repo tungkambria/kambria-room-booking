@@ -43,12 +43,27 @@ const subscribeToSendy = async (email, name) => {
       }).toString(),
     });
 
-    const result = await response.json();
+    const contentType = response.headers.get("content-type");
+    let result;
+
+    if (contentType && contentType.includes("application/json")) {
+      result = await response.json();
+    } else {
+      // Handle plain text response
+      const text = await response.text();
+      result = {
+        success: text.includes("true") || text.includes("Already subscribed."),
+      };
+    }
+
     if (result.success) {
       console.log(`Subscribed ${email} to Sendy list`);
       return true;
     } else {
-      console.error(`Failed to subscribe ${email}:`, result.message);
+      console.error(
+        `Failed to subscribe ${email}:`,
+        result.message || "Unknown error"
+      );
       return false;
     }
   } catch (error) {
